@@ -1,0 +1,2533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Worldseed</title>
+<style>
+:root{
+  --bg:#000;--fg:#fff;--dim:#9a9a9a;--faint:#555;--accent:#ffd75e;--bad:#ff5e5e;--good:#7dff8a;
+  --panel:#0a0a0a;--border:2px solid #fff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--fg);
+  font-family:"Courier New",Courier,monospace;
+  font-size:14px;line-height:1.45;
+  display:flex;flex-direction:column;overflow:hidden;
+  user-select:none;
+}
+button{
+  background:var(--bg);color:var(--fg);border:var(--border);
+  font-family:inherit;font-size:13px;padding:6px 12px;cursor:pointer;
+  text-transform:uppercase;letter-spacing:1px;
+}
+button:hover,button:focus-visible{background:var(--fg);color:var(--bg);outline:none}
+button:disabled{opacity:.35;cursor:default}
+button:disabled:hover{background:var(--bg);color:var(--fg)}
+button.small{padding:3px 8px;font-size:11px;border-width:1px}
+input[type=text]{
+  background:var(--bg);color:var(--fg);border:var(--border);
+  font-family:inherit;font-size:14px;padding:6px 8px;width:100%;
+}
+input[type=text]:focus{outline:none;border-color:var(--accent)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#000;border-left:1px solid #333}
+::-webkit-scrollbar-thumb{background:#444}
+::-webkit-scrollbar-thumb:hover{background:#666}
+
+/* ---------- top bar ---------- */
+#topbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:6px 10px;border-bottom:var(--border);min-height:44px;
+}
+#planetBtn{font-weight:bold;letter-spacing:2px}
+#dateLine{color:var(--dim);font-size:12px;white-space:nowrap}
+#popLine{font-size:12px;white-space:nowrap}
+#faithWrap{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px}
+.bar{width:90px;height:10px;border:1px solid #fff;position:relative;background:#000}
+.bar>i{display:block;height:100%;background:var(--fg)}
+#faithBar>i{background:var(--accent)}
+
+/* ---------- map ---------- */
+#mapwrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}
+#map{image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;max-height:100%;cursor:crosshair}
+#ticker{
+  position:absolute;left:0;right:0;bottom:0;padding:4px 10px;
+  font-size:12px;color:var(--dim);background:rgba(0,0,0,.75);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+}
+#viewTag{position:absolute;top:6px;right:8px;font-size:11px;color:var(--faint);pointer-events:none;text-transform:uppercase;letter-spacing:1px}
+
+/* ---------- controls ---------- */
+#controls{
+  display:flex;gap:8px;padding:8px 10px;border-top:var(--border);
+  flex-wrap:wrap;align-items:center;
+}
+#nextBtn{font-weight:bold;padding:10px 22px;font-size:15px}
+#promptBadge{display:none;color:#000;background:var(--accent);border-color:var(--accent);font-weight:bold}
+#promptBadge.show{display:inline-block;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.55}}
+.spacer{flex:1}
+
+/* ---------- panels ---------- */
+#panel{
+  position:absolute;top:0;right:0;bottom:0;width:min(440px,100%);
+  background:var(--panel);border-left:var(--border);
+  display:none;flex-direction:column;z-index:30;
+}
+#panel.open{display:flex}
+#panelHead{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:var(--border)}
+#panelTitle{font-weight:bold;text-transform:uppercase;letter-spacing:2px;flex:1}
+#panelBody{flex:1;overflow-y:auto;padding:10px;font-size:13px}
+#panelBody h3{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--dim);margin:14px 0 6px;border-bottom:1px solid #333;padding-bottom:3px}
+#panelBody h3:first-child{margin-top:0}
+.row{display:flex;justify-content:space-between;gap:10px;padding:2px 0}
+.row .k{color:var(--dim)}
+.listItem{padding:6px 8px;border:1px solid #333;margin-bottom:6px;cursor:pointer}
+.listItem:hover{border-color:#fff}
+.listItem .sub{color:var(--dim);font-size:11px}
+.tag{display:inline-block;border:1px solid #555;padding:0 6px;font-size:11px;margin:1px 2px 1px 0;color:var(--dim)}
+.dot{display:inline-block;width:10px;height:10px;margin-right:6px;border:1px solid #fff;vertical-align:-1px}
+.chronLine{padding:3px 0;border-bottom:1px dotted #222;font-size:12px}
+.chronLine .d{color:var(--faint);margin-right:6px}
+.c-war{color:#ff8a8a}.c-tech{color:#8ad1ff}.c-faith{color:var(--accent)}.c-disaster{color:#ffb46e}
+.c-people{color:#d3a6ff}.c-religion{color:#ffe9a6}.c-town{color:#9fff9f}.c-trade{color:#9fd8c8}
+.c-species{color:#b6ff7d}.c-astro{color:#c8c8ff}.c-mile{color:#fff;font-weight:bold}.c-decision{color:var(--accent)}
+.filterRow{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.filterRow button{font-size:10px;padding:2px 6px;border-width:1px}
+.filterRow button.on{background:#fff;color:#000}
+.miniBar{display:inline-block;width:70px;height:8px;border:1px solid #777;vertical-align:middle;margin-left:6px}
+.miniBar>i{display:block;height:100%;background:#fff}
+
+/* ---------- prompt modal ---------- */
+#shade{position:absolute;inset:0;background:rgba(0,0,0,.7);display:none;z-index:40}
+#shade.open{display:flex;align-items:center;justify-content:center;padding:14px}
+#prompt{
+  width:min(460px,100%);background:#000;border:var(--border);
+  padding:16px;box-shadow:0 0 0 4px #000,0 0 30px rgba(255,255,255,.15);
+}
+#promptTitle{font-weight:bold;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;color:var(--accent)}
+#promptBody{margin-bottom:14px;white-space:pre-wrap}
+#promptInputRow{display:none;gap:8px;margin-bottom:14px}
+#promptInputRow.show{display:flex}
+#promptBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+#promptFrom{font-size:11px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+
+/* ---------- overlays ---------- */
+.fullOverlay{
+  position:fixed;inset:0;background:#000;z-index:50;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;text-align:center;padding:20px;
+}
+.fullOverlay.open{display:flex}
+.bigTitle{font-size:clamp(28px,7vw,52px);letter-spacing:8px;font-weight:bold}
+.subTitle{color:var(--dim);letter-spacing:2px;text-transform:uppercase;font-size:12px}
+.seedRow{display:flex;gap:8px;width:min(360px,90%)}
+#overStats{font-size:13px;color:var(--dim);max-width:420px;line-height:1.8}
+#toasts{position:fixed;left:50%;top:54px;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:#000;border:1px solid var(--accent);color:var(--accent);padding:6px 14px;font-size:12px;letter-spacing:1px;animation:fadeToast 4s forwards}
+@keyframes fadeToast{0%{opacity:0;transform:translateY(-6px)}10%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+
+@media(max-width:560px){
+  #topbar{gap:6px;padding:6px}
+  #faithWrap{margin-left:0}
+  #controls{gap:6px;padding:6px}
+  #nextBtn{flex:1}
+  body{font-size:13px}
+}
+
+</style>
+</head>
+<body>
+<div id="topbar">
+  <button id="planetBtn">WORLDSEED</button>
+  <span id="dateLine"></span>
+  <span id="popLine"></span>
+  <div id="faithWrap">FAITH <div class="bar" id="faithBar"><i style="width:72%"></i></div> <span id="faithNum">72</span></div>
+</div>
+<div id="mapwrap">
+  <canvas id="map" width="720" height="468"></canvas>
+  <div id="viewTag"></div>
+  <div id="ticker"></div>
+
+  <div id="panel">
+    <div id="panelHead"><span id="panelTitle"></span><button id="panelClose" class="small">&#10005;</button></div>
+    <div id="panelBody"></div>
+  </div>
+
+  <div id="shade"><div id="prompt">
+    <div id="promptFrom"></div>
+    <div id="promptTitle"></div>
+    <div id="promptBody"></div>
+    <div id="promptInputRow"><input id="promptInput" type="text" maxlength="24" autocomplete="off"><button id="promptShuffle" title="another name">&#10227;</button></div>
+    <div id="promptBtns"></div>
+  </div></div>
+</div>
+<div id="controls">
+  <button id="nextBtn">Next Day &#9654;</button>
+  <button id="ffBtn">&#9193; &times;10</button>
+  <button id="autoBtn">&#9654; AUTO</button>
+  <button id="promptBadge"></button>
+  <span class="spacer"></span>
+  <button id="townsBtn" class="small">Towns</button>
+  <button id="techBtn" class="small">Tech</button>
+  <button id="peopleBtn" class="small">People</button>
+  <button id="mileBtn" class="small">Goals</button>
+  <button id="chronBtn" class="small">Chronicle</button>
+  <button id="menuBtn" class="small">Menu</button>
+</div>
+<div id="toasts"></div>
+
+<div class="fullOverlay open" id="titleOverlay">
+  <div class="bigTitle">WORLDSEED</div>
+  <div class="subTitle">guide a civilization &mdash; indirectly</div>
+  <div class="seedRow"><input id="seedInput" type="text" maxlength="24" placeholder="seed" autocomplete="off"><button id="seedShuffle">&#10227;</button></div>
+  <button id="beginBtn">Begin</button>
+  <div class="subTitle" style="max-width:440px">towns live on their own &middot; they will ask for your counsel &middot; their faith in you is everything &middot; the same seed always grows the same planet</div>
+</div>
+
+<div class="fullOverlay" id="overOverlay">
+  <div class="bigTitle" id="overTitle"></div>
+  <div id="overStats"></div>
+  <button id="againBtn">New World</button>
+</div>
+
+<script>
+/* ============================================================
+   WORLDSEED — an original, from-scratch civilization simulator.
+   You are the Voice: guide autonomous towns indirectly, through
+   prompts. All code, text and art generated originally.
+   ============================================================ */
+'use strict';
+const HAS_DOM = (typeof document !== 'undefined' && typeof window !== 'undefined');
+
+/* ---------------- seeded RNG ---------------- */
+function xmur3(str){
+  let h = 1779033703 ^ str.length;
+  for(let i=0;i<str.length;i++){
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function(){
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^= h >>> 16) >>> 0;
+  };
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let R = mulberry32(1);          // live sim stream (reseeded per game)
+let WR = mulberry32(1);         // worldgen stream (deterministic per seed)
+const rnd = ()=>R();
+const ri  = (a,b)=>a + Math.floor(R()*(b-a+1));
+const rf  = (a,b)=>a + R()*(b-a);
+const pick= (arr)=>arr[Math.floor(R()*arr.length)];
+const chance=(p)=>R()<p;
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const lerp=(a,b,t)=>a+(b-a)*t;
+function ihash(x,y,s){ // deterministic 0..1 from ints
+  let h = (x*374761393 + y*668265263 + s*951274213) | 0;
+  h = Math.imul(h ^ (h>>>13), 1274126177);
+  return ((h ^ (h>>>16)) >>> 0) / 4294967296;
+}
+
+/* ---------------- name generation (original) ---------------- */
+const NG = {
+  c1:['k','t','p','s','m','n','r','l','v','d','b','g','h','z','th','sh','ch','qu','pr','kr','vl','dr'],
+  v:['a','e','i','o','u','ae','ia','ou','ei','oa','au','ua'],
+  c2:['n','l','r','s','t','m','k','d','sh','th','x','nd','rn','ss'],
+  word(min,max,cap){
+    const syl = ri(min,max);
+    let w = chance(.22) ? pick(this.v) : '';
+    for(let i=0;i<syl;i++){
+      w += pick(this.c1) + pick(this.v);
+      if(chance(.3) && i===syl-1) w += pick(this.c2);
+    }
+    if(w.length>11) w = w.slice(0,11);
+    return cap===false ? w : w.charAt(0).toUpperCase()+w.slice(1);
+  },
+  town(){ return this.word(2,4); },
+  person(){ return this.word(2,3); },
+  planet(){ return this.word(2,4); },
+  star(){ return chance(.4) ? 'Al'+this.word(1,2,false) : this.word(2,3); },
+  epithet(role){
+    const map = {
+      leader:['the Stern','the Gentle','the Far-Seeing','the Unyielding','the Quiet','the Builder'],
+      inventor:['the Clever','the Curious','the Tinkerer','the Bright'],
+      prophet:['the Devout','the Dreamer','the Listener','the Burning'],
+      general:['the Bold','the Iron','the Swift','the Grim'],
+      explorer:['the Wanderer','the Pathfinder','the Restless','of the Horizon'],
+    };
+    return pick(map[role]||map.leader);
+  },
+  religion(playerCult){
+    if(playerCult) return pick(['The Faith of the Voice','The Listening Way','The Covenant of the Voice','Voicekeepers']);
+    const n = this.word(2,3);
+    return pick(['The Way of '+n,'Cult of '+n,n+' Creed','The '+n+' Path','Order of '+n]);
+  },
+  speciesAdj(){ return pick(['glimmering','barbed','silent','crowned','speckled','long-tailed','moss-backed','pale','ember','dusk','hollow-boned','river','stone-shelled','whistling','six-winged','velvet']); },
+  speciesNoun(kind){
+    if(kind==='plant') return pick(['fern','reed','bloom','vine','moss','root','cane','blossom','bramble','gourd']);
+    if(kind==='fish')  return pick(['eel','ray','darter','pike','shellfish','drifter','leaper','glider']);
+    return pick(['hare','stag','wolfkin','beetle','crane','lizard','ox','marmot','serpent','strider','grazer','howler']);
+  },
+  species(kind){ return this.speciesAdj()+' '+this.speciesNoun(kind); },
+};
+
+/* ---------------- world constants ---------------- */
+const W = 120, H = 78, SCALE = 6;
+const T = {DEEP:0,OCEAN:1,COAST:2,GRASS:3,FOREST:4,HILLS:5,MOUNT:6,DESERT:7,SNOW:8,DRY:9,ASH:10};
+const TINFO = [
+  {n:'Deep Sea', col:[10,34,66],   land:false, fert:0},
+  {n:'Sea',      col:[18,62,110],  land:false, fert:0},
+  {n:'Coast',    col:[201,180,106],land:true,  fert:.55},
+  {n:'Plains',   col:[62,122,62],  land:true,  fert:1.0},
+  {n:'Forest',   col:[40,86,44],   land:true,  fert:.8},
+  {n:'Hills',    col:[110,106,90], land:true,  fert:.5},
+  {n:'Mountains',col:[138,138,138],land:true,  fert:.12},
+  {n:'Desert',   col:[194,163,90], land:true,  fert:.15},
+  {n:'Snow',     col:[223,232,239],land:true,  fert:.12},
+  {n:'Dry Plains',col:[138,138,74],land:true,  fert:.4},
+  {n:'Ashlands', col:[58,52,50],   land:true,  fert:.05},
+];
+const SEASONS = ['Spring','Summer','Autumn','Winter'];
+const SEASON_LEN = 30, YEAR = 120;
+const SEASON_CROP = [1.15, 1.30, 1.00, 0.45];
+const ERAS = ['the Dawn','the Agricultural Age','the Bronze Age','the Classical Age','the Age of Sages','the Age of Invention','the Machine Age','the Space Age'];
+
+/* tech tree: id -> {name, era, cost, req[], desc} */
+const TECHS = {
+  fire:       {name:'Fire',          era:0, cost:6,   req:[],                    desc:'Warmth, cooked food, and stories at night.'},
+  stone_tools:{name:'Stone Tools',   era:0, cost:8,   req:[],                    desc:'Edges for work and war.'},
+  hunting:    {name:'Hunting',       era:0, cost:8,   req:['stone_tools'],       desc:'Food from forest and shore.'},
+  shelter:    {name:'Shelter',       era:0, cost:8,   req:[],                    desc:'Walls against winter.'},
+  agriculture:{name:'Agriculture',   era:1, cost:26,  req:['stone_tools'],       desc:'Fields sown on purpose.'},
+  husbandry:  {name:'Animal Husbandry',era:1,cost:22, req:['hunting'],           desc:'Beasts kept, not chased.'},
+  pottery:    {name:'Pottery',       era:1, cost:20,  req:['fire'],              desc:'Grain that keeps through winter.'},
+  weaving:    {name:'Weaving',       era:1, cost:18,  req:[],                    desc:'Cloth, comfort, trade goods.'},
+  writing:    {name:'Writing',       era:2, cost:50,  req:['pottery'],           desc:'Memory that outlives the elders.'},
+  bronze:     {name:'Bronze Working',era:2, cost:60,  req:['stone_tools','fire'],desc:'Metal pulled from the hills.'},
+  masonry:    {name:'Masonry',       era:2, cost:45,  req:['stone_tools'],       desc:'Stone walls and standing halls.'},
+  wheel:      {name:'The Wheel',     era:2, cost:40,  req:['husbandry'],         desc:'Roads grow shorter.'},
+  sailing:    {name:'Sailing',       era:3, cost:90,  req:['wheel','weaving'],   desc:'The sea becomes a road.'},
+  currency:   {name:'Currency',      era:3, cost:80,  req:['writing'],           desc:'Trust, minted.'},
+  mathematics:{name:'Mathematics',   era:3, cost:85,  req:['writing'],           desc:'The shapes beneath things.'},
+  philosophy: {name:'Philosophy',    era:3, cost:75,  req:['writing'],           desc:'Asking why, on purpose.'},
+  astronomy:  {name:'Astronomy',     era:4, cost:160, req:['mathematics'],       desc:'Naming the lights above.'},
+  medicine:   {name:'Medicine',      era:4, cost:140, req:['philosophy'],        desc:'Sickness met with knowledge.'},
+  engineering:{name:'Engineering',   era:4, cost:150, req:['mathematics','masonry'],desc:'Rivers argued with, and won.'},
+  cartography:{name:'Cartography',   era:4, cost:120, req:['sailing','writing'], desc:'The world, held in the hand.'},
+  printing:   {name:'Printing',      era:5, cost:260, req:['writing','engineering'],desc:'A thought, copied a thousand times.'},
+  optics:     {name:'Optics',        era:5, cost:240, req:['mathematics'],       desc:'Glass that brings the far near.'},
+  steel:      {name:'Steel',         era:5, cost:300, req:['bronze','engineering'],desc:'Harder edges, taller frames.'},
+  navigation: {name:'Navigation',    era:5, cost:280, req:['cartography','astronomy'],desc:'No horizon is final.'},
+  steam:      {name:'Steam Engines', era:6, cost:520, req:['steel'],             desc:'Fire put to work.'},
+  sanitation: {name:'Sanitation',    era:6, cost:460, req:['medicine','engineering'],desc:'Clean water, longer lives.'},
+  electricity:{name:'Electricity',   era:6, cost:600, req:['steam'],             desc:'Lightning, tamed and wired.'},
+  signals:    {name:'Signals',       era:6, cost:540, req:['electricity'],       desc:'Words faster than any rider.'},
+  flight:     {name:'Flight',        era:7, cost:900, req:['steam','navigation'],desc:'The sky becomes a road.'},
+  computing:  {name:'Computing',     era:7, cost:1000,req:['electricity','mathematics'],desc:'Machines that think in numbers.'},
+  rocketry:   {name:'Rocketry',      era:7, cost:1200,req:['flight','steel'],    desc:'Fire pointed at the stars.'},
+  spaceflight:{name:'Spaceflight',   era:7, cost:1500,req:['rocketry','computing'],desc:'Leaving the cradle.'},
+};
+const TECH_IDS = Object.keys(TECHS);
+
+/* ---------------- world generation ---------------- */
+let SEEDN = 1;
+function vnoise(x,y){ // value noise w/ bilinear smoothstep
+  const xi=Math.floor(x), yi=Math.floor(y);
+  const xf=x-xi, yf=y-yi;
+  const sx=xf*xf*(3-2*xf), sy=yf*yf*(3-2*yf);
+  const a=ihash(xi,yi,SEEDN),   b=ihash(xi+1,yi,SEEDN);
+  const c=ihash(xi,yi+1,SEEDN), d=ihash(xi+1,yi+1,SEEDN);
+  return lerp(lerp(a,b,sx), lerp(c,d,sx), sy);
+}
+function fbm(x,y,oct){
+  let v=0, amp=.55, f=1, tot=0;
+  for(let i=0;i<oct;i++){ v+=vnoise(x*f,y*f)*amp; tot+=amp; amp*=.5; f*=2; }
+  return v/tot;
+}
+function genWorld(){
+  const tiles = new Uint8Array(W*H);
+  const fert  = new Float32Array(W*H);
+  let seaLevel = .50;
+  for(let attempt=0; attempt<8; attempt++){
+    let landCount = 0;
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const i = y*W+x;
+        const e = fbm(x/19, y/15, 4);
+        const m = fbm(x/13+90, y/11+90, 3);
+        const lat = Math.abs(y/H - .5)*2;
+        const temp = clamp(1.05 - lat*1.25 - Math.max(0,e-.55)*.9 + (vnoise(x/9+50,y/9+50)-.5)*.18, 0, 1);
+        let t;
+        if(e < seaLevel-.085) t = T.DEEP;
+        else if(e < seaLevel-.02) t = T.OCEAN;
+        else if(e < seaLevel+.012) t = T.COAST;
+        else if(temp < .16) t = T.SNOW;
+        else if(e > seaLevel+.30) t = T.MOUNT;
+        else if(e > seaLevel+.20) t = T.HILLS;
+        else if(m < .34 && temp > .62) t = T.DESERT;
+        else if(m > .56) t = T.FOREST;
+        else t = T.GRASS;
+        tiles[i] = t;
+        fert[i] = TINFO[t].fert * (0.7 + 0.6*vnoise(x/5+200,y/5+200));
+        if(TINFO[t].land) landCount++;
+      }
+    }
+    const frac = landCount/(W*H);
+    if(frac > .26 && frac < .46) break;
+    seaLevel += (frac <= .26 ? -.022 : .022);
+  }
+  return {tiles, fert};
+}
+function findSettleSpot(tiles, fert, nearXY, minD, maxD){
+  // best fertile grass/forest tile, optionally within ring of nearXY
+  let best=-1, bestScore=-1;
+  for(let tries=0; tries<900; tries++){
+    let x,y;
+    if(nearXY){
+      const ang=rf(0,Math.PI*2), d=rf(minD,maxD);
+      x=Math.round(nearXY[0]+Math.cos(ang)*d); y=Math.round(nearXY[1]+Math.sin(ang)*d*.7);
+      if(x<2||y<2||x>=W-2||y>=H-2) continue;
+    } else { x=ri(4,W-5); y=ri(6,H-7); }
+    const i=y*W+x, t=tiles[i];
+    if(t!==T.GRASS && t!==T.FOREST && t!==T.COAST) continue;
+    if(G && G.TO[i]!==-1) continue;
+    let score = fert[i] + (t===T.GRASS?.4:0);
+    // prefer some coast nearby, avoid existing towns too close
+    let coast=0, crowd=0;
+    for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){
+      const j=(y+dy)*W+(x+dx);
+      if(j<0||j>=W*H) continue;
+      if(tiles[j]===T.OCEAN||tiles[j]===T.COAST) coast++;
+      if(G && G.TO[j]!==-1) crowd++;
+    }
+    score += Math.min(coast,6)*.05 - crowd*.5;
+    if(G){ for(const tw of G.towns){ if(!tw.dead){ const d=Math.hypot(tw.cap[0]-x,tw.cap[1]-y); if(d<7) {score=-9;break;} } } }
+    if(score>bestScore){ bestScore=score; best=i; }
+    if(bestScore>1.4 && tries>120) break;
+  }
+  return bestScore>0 ? best : -1;
+}
+
+/* ---------------- game state ---------------- */
+let G = null;
+const STARTING_FAITH = 72;
+
+function chron(msg, type, townId){
+  G.chron.push({d:G.day, m:msg, t:type||'town', town:townId});
+  if(G.chron.length > 900) G.chron.splice(0, G.chron.length-900);
+  G.lastLine = msg;
+}
+
+function townColor(i){
+  const hue = (i*47 + 13) % 360;
+  return 'hsl('+hue+',72%,55%)';
+}
+
+function newTown(idx, opts){
+  opts = opts || {};
+  const x = idx % W, y = Math.floor(idx / W);
+  const t = {
+    id: G.townSeq++,
+    name: opts.name || NG.town(),
+    color: '',
+    cap: [x,y],
+    tiles: [],
+    pop: opts.pop ? Object.assign({},opts.pop) : {c:5,w:13,e:2},
+    res: {food: 40, wood: 10, stone: 0, metal: 0, know: 0},
+    techs: opts.techs ? Object.assign({},opts.techs) : {},
+    research: null,
+    happiness: 62, faith: STARTING_FAITH, morale: 60,
+    culture: opts.culture ? Object.assign({},opts.culture) :
+      {mil:rf(-.3,.3), spi:rf(-.2,.5), ope:rf(-.3,.4), tra:rf(-.3,.4)},
+    religion: (opts.religion!==undefined)?opts.religion:null,
+    leader: null,
+    era: 0,
+    warEx: 0, unrest: 0, birthAcc: 0,
+    protectedUntil: G.day + 60,
+    foundedDay: G.day,
+    parent: opts.parent!==undefined ? opts.parent : null,
+    dead: false, starvingDays: 0, droughtDays: 0, fertBoostUntil: 0,
+    flags: {},           // irrigation, army, temple, rationing...
+    warsWon: 0,
+    memory: [],          // recent decision outcomes (strings)
+    terr: null, terrDirty: true,
+    hapBuf: 0,
+  };
+  t.color = townColor(t.id);
+  G.towns.push(t);
+  claimRadius(t, 2);
+  const leader = spawnPerson(t, 'leader');
+  t.leader = leader.id;
+  return t;
+}
+function popOf(t){ return t.pop.c + t.pop.w + t.pop.e; }
+function aliveTowns(){ return G.towns.filter(t=>!t.dead); }
+function townById(id){ return G.towns.find(t=>t.id===id); }
+
+function claimTile(t, i){
+  if(G.TO[i] !== -1) return false;
+  if(!TINFO[G.tiles[i]].land) return false;
+  G.TO[i] = t.id; t.tiles.push(i); t.terrDirty = true;
+  return true;
+}
+function claimRadius(t, r){
+  const [cx,cy] = t.cap;
+  for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+    const x=cx+dx, y=cy+dy;
+    if(x<0||y<0||x>=W||y>=H) continue;
+    if(dx*dx+dy*dy > r*r+1) continue;
+    claimTile(t, y*W+x);
+  }
+}
+function releaseTile(t, i){
+  const k = t.tiles.indexOf(i);
+  if(k>=0){ t.tiles.splice(k,1); G.TO[i] = -1; t.terrDirty = true; }
+}
+function terrOf(t){
+  if(t.terrDirty || !t.terr){
+    const c = {grass:0,forest:0,hills:0,mount:0,coast:0,desert:0,snow:0,dry:0,ash:0,fertSum:0,seaAdj:0};
+    for(const i of t.tiles){
+      const tt = G.tiles[i];
+      if(tt===T.GRASS)c.grass++; else if(tt===T.FOREST)c.forest++;
+      else if(tt===T.HILLS)c.hills++; else if(tt===T.MOUNT)c.mount++;
+      else if(tt===T.COAST)c.coast++; else if(tt===T.DESERT)c.desert++;
+      else if(tt===T.SNOW)c.snow++; else if(tt===T.DRY)c.dry++; else if(tt===T.ASH)c.ash++;
+      c.fertSum += G.fert[i];
+      const x=i%W;
+      if(x>0 && !TINFO[G.tiles[i-1]].land) c.seaAdj++;
+      else if(x<W-1 && !TINFO[G.tiles[i+1]].land) c.seaAdj++;
+      else if(i-W>=0 && !TINFO[G.tiles[i-W]].land) c.seaAdj++;
+      else if(i+W<W*H && !TINFO[G.tiles[i+W]].land) c.seaAdj++;
+    }
+    c.n = t.tiles.length || 1;
+    c.fertAvg = c.fertSum / c.n;
+    t.terr = c; t.terrDirty = false;
+  }
+  return t.terr;
+}
+
+/* ---------------- people ---------------- */
+function spawnPerson(town, role){
+  const p = {
+    id: G.personSeq++,
+    name: NG.person(),
+    epithet: null,
+    role, townId: town.id,
+    born: G.day, lifespan: ri(80,210),
+    alive: true, fame: 0,
+    deeds: [],
+  };
+  G.people.push(p);
+  return p;
+}
+function personById(id){ return G.people.find(p=>p.id===id); }
+function famePerson(p, deed, amt){
+  p.fame += amt||1;
+  if(p.deeds.length<6) p.deeds.push(deed);
+  if(p.fame>=3 && !p.epithet) p.epithet = NG.epithet(p.role);
+}
+function personLabel(p){ return p.name + (p.epithet ? ' '+p.epithet : ''); }
+
+/* ---------------- religions ---------------- */
+function foundReligion(town, prophet, playerCult){
+  const r = {
+    id: G.religionSeq++,
+    name: NG.religion(playerCult),
+    playerCult: !!playerCult,
+    founder: prophet ? prophet.id : null,
+    foundedDay: G.day,
+    homeTown: town.id,
+  };
+  G.religions.push(r);
+  town.religion = r.id;
+  town.hapBuf += 6;
+  if(playerCult){ town.faith = clamp(town.faith+8,0,100); }
+  chron(town.name+' kindles a new faith: '+r.name+(prophet?(', preached by '+personLabel(prophet)):''), 'religion', town.id);
+  return r;
+}
+function religionById(id){ return G.religions.find(r=>r.id===id); }
+
+/* ---------------- relations ---------------- */
+function relKey(a,b){ return a<b ? a+'_'+b : b+'_'+a; }
+function getRel(a,b){
+  const k = relKey(a,b);
+  if(!(k in G.rel)) G.rel[k] = rf(-5,15);
+  return G.rel[k];
+}
+function addRel(a,b,d){
+  const k = relKey(a,b);
+  G.rel[k] = clamp(getRel(a,b)+d, -100, 100);
+}
+function cultureSim(a,b){
+  const ca=a.culture, cb=b.culture;
+  const diff=(Math.abs(ca.mil-cb.mil)+Math.abs(ca.spi-cb.spi)+Math.abs(ca.ope-cb.ope)+Math.abs(ca.tra-cb.tra))/4;
+  return 1 - diff; // 0..1 (1 = identical)
+}
+function atWar(a,b){
+  return G.wars.some(w=>!w.over && ((w.a===a.id&&w.b===b.id)||(w.a===b.id&&w.b===a.id)));
+}
+function warOf(t){ return G.wars.find(w=>!w.over && (w.a===t.id||w.b===t.id)); }
+function hasRoute(a,b){ return G.routes.some(r=>(r.a===a.id&&r.b===b.id)||(r.a===b.id&&r.b===a.id)); }
+function capDist(a,b){ return Math.hypot(a.cap[0]-b.cap[0], a.cap[1]-b.cap[1]); }
+
+/* ============================================================
+   PROMPTS — the Voice speaks only when asked.
+   Prompts are plain data; effects applied centrally (save-safe).
+   ============================================================ */
+function queuePrompt(p){
+  p.id = G.promptSeq++;
+  p.day = G.day;
+  G.prompts.push(p);
+  if(HAS_DOM) UI.maybeShowPrompt();
+}
+function suggestName(kind){
+  if(kind==='planet') return NG.planet();
+  if(kind==='star')   return NG.star();
+  if(kind==='body')   return NG.planet();
+  if(kind==='town')   return NG.town();
+  if(kind==='species')return null; // species carry their own suggestion
+  if(kind==='religion')return NG.religion(false);
+  return NG.word(2,3);
+}
+
+/* --- policy prompt definitions: eligibility + builder --- */
+const PROMPT_DEFS = [
+  {kind:'feast_or_store', w:10,
+    ok:(t)=>t.res.food > popOf(t)*1.2 && G.season!==3,
+    build:(t)=>({title:'A heavy harvest', townId:t.id,
+      body:'The granaries of '+t.name+' overflow. The people ask the Voice: shall we feast beneath the lanterns, or set the surplus aside for leaner days?',
+      options:['Feast','Store it']})},
+  {kind:'irrigation', w:8,
+    ok:(t)=>t.techs.agriculture && !t.flags.irrigation && t.res.wood>=35,
+    build:(t)=>({title:'Ditches and channels', townId:t.id,
+      body:'Farmers of '+t.name+' propose cutting channels from the wetlands to their fields. It will cost much timber. Shall they dig?',
+      options:['Dig the channels','Let the fields be']})},
+  {kind:'standing_army', w:7,
+    ok:(t)=>!t.flags.army && popOf(t)>30 && (t.culture.mil>0 || lowestRel(t) < -25),
+    build:(t)=>({title:'Spears at the ready', townId:t.id,
+      body:'Elders of '+t.name+' argue for a standing warband — fed year-round, drilled daily. Mouths that grow no grain. Raise it?',
+      options:['Raise the warband','Trust in peace']})},
+  {kind:'festival', w:8,
+    ok:(t)=>t.happiness<55 && t.res.food>popOf(t)*0.8,
+    build:(t)=>({title:'A festival is proposed', townId:t.id,
+      body:'Spirits are low in '+t.name+'. Some propose a great festival — costly in food, rich in joy. Hold it?',
+      options:['Hold the festival','Save the food']})},
+  {kind:'open_borders', w:6,
+    ok:(t)=>aliveTowns().length>1 && t.happiness>45,
+    build:(t)=>{
+      const o = nearestOther(t); if(!o) return null;
+      return {title:'Strangers at the gate', townId:t.id, args:{other:o.id},
+        body:'Wanderers from '+o.name+' ask to settle in '+t.name+'. More hands, more mouths, new ways. Let them in?',
+        options:['Welcome them','Turn them away']};
+    }},
+  {kind:'grand_temple', w:5,
+    ok:(t)=>t.techs.masonry && t.religion!==null && !t.flags.temple,
+    build:(t)=>({title:'A house for the divine', townId:t.id,
+      body:'The faithful of '+t.name+' wish to raise a great temple of stone. It will take long labor and much rock. Begin the work?',
+      options:['Raise the temple','The fields come first']})},
+  {kind:'explore_expedition', w:6,
+    ok:(t)=>popOf(t)>25 && t.techs.hunting,
+    build:(t)=>({title:'Beyond the known paths', townId:t.id,
+      body:'Restless youths of '+t.name+' ask leave to journey past the edge of every map, carrying provisions into the unknown. Send them?',
+      options:['Send the expedition','Keep them home']})},
+  {kind:'rest_fields', w:7,
+    ok:(t)=>{ const c=terrOf(t); return t.techs.agriculture && c.fertAvg < 0.45 && c.grass>4; },
+    build:(t)=>({title:'The soil grows tired', townId:t.id,
+      body:'The fields of '+t.name+' yield less each season. Farmers ask: let the land lie fallow a while, or plow harder still?',
+      options:['Let the land rest','Plow on']})},
+  {kind:'war_counsel', w:12,
+    ok:(t)=>{ const o=worstEnemy(t); return o && getRel(t.id,o.id)<-35 && !atWar(t,o) && G.day>t.protectedUntil; },
+    build:(t)=>{
+      const o = worstEnemy(t);
+      return {title:'Drums in the council hall', townId:t.id, args:{other:o.id},
+        body:'Grievances against '+o.name+' pile high in '+t.name+'. The council turns to the Voice: urge war, or counsel restraint?',
+        options:['Urge war','Counsel restraint']};
+    }},
+  {kind:'peace_counsel', w:12,
+    ok:(t)=>{ const w=warOf(t); return w && (w.exA+w.exB)>40; },
+    build:(t)=>{
+      const w = warOf(t);
+      const o = townById(w.a===t.id?w.b:w.a);
+      return {title:'Weary of war', townId:t.id, args:{other:o.id},
+        body:'The war against '+o.name+' grinds on, and '+t.name+' buries more of its own each season. Seek peace, or fight to the end?',
+        options:['Seek peace','Fight on']};
+    }},
+  {kind:'aid_famine', w:11,
+    ok:(t)=>{
+      const needy = aliveTowns().find(o=>o.id!==t.id && o.starvingDays>3 && getRel(t.id,o.id)>-10 && capDist(t,o)<45);
+      return t.res.food > popOf(t)*1.5 && !!needy;
+    },
+    build:(t)=>{
+      const o = aliveTowns().find(o2=>o2.id!==t.id && o2.starvingDays>3 && getRel(t.id,o2.id)>-10 && capDist(t,o2)<45);
+      if(!o) return null;
+      return {title:'Hunger in '+o.name, townId:t.id, args:{other:o.id},
+        body:'Word reaches '+t.name+': the people of '+o.name+' are starving. '+t.name+' has grain to spare — barely. Send aid?',
+        options:['Send grain','Guard our own']};
+    }},
+];
+function lowestRel(t){
+  let m = 0;
+  for(const o of aliveTowns()){ if(o.id!==t.id) m = Math.min(m, getRel(t.id,o.id)); }
+  return m;
+}
+function worstEnemy(t){
+  let best=null, bm=0;
+  for(const o of aliveTowns()){
+    if(o.id===t.id) continue;
+    const r = getRel(t.id,o.id);
+    if(r < bm){ bm=r; best=o; }
+  }
+  return best;
+}
+function nearestOther(t){
+  let best=null, bd=1e9;
+  for(const o of aliveTowns()){
+    if(o.id===t.id) continue;
+    const d = capDist(t,o);
+    if(d<bd){ bd=d; best=o; }
+  }
+  return best;
+}
+
+function generatePolicyPrompt(){
+  const towns = aliveTowns(); if(!towns.length) return;
+  const candidates = [];
+  for(const def of PROMPT_DEFS){
+    for(const t of towns){
+      if(G.prompts.some(p=>p.townId===t.id)) continue; // one pending ask per town
+      let okv = false; try{ okv = def.ok(t); }catch(e){ okv=false; }
+      if(okv) candidates.push({def,t});
+    }
+  }
+  if(!candidates.length) return;
+  let totW = 0; for(const c of candidates) totW += c.def.w;
+  let roll = rnd()*totW;
+  for(const c of candidates){
+    roll -= c.def.w;
+    if(roll<=0){
+      const p = c.def.build(c.t);
+      if(p){ p.kind = c.def.kind; queuePrompt(p); }
+      return;
+    }
+  }
+}
+
+/* --- decision memory: record + later evaluation --- */
+function recordDecision(kind, townId, choice, args, horizon){
+  const t = townById(townId);
+  G.decisions.push({
+    kind, townId, choice, args: args||{},
+    day: G.day, horizon: horizon||30,
+    base: t ? {food:t.res.food, pop:popOf(t), hap:t.happiness, starv:t.starvingDays} : {},
+  });
+}
+function judge(t, ok, msgGood, msgBad, mag){
+  mag = mag||5;
+  const d = ok ? mag : -mag;
+  t.faith = clamp(t.faith + d, 0, 100);
+  const line = 'The people of '+t.name+' remember your counsel — '+(ok?msgGood:msgBad)+' ('+(d>0?'+':'')+d+' faith)';
+  chron(line, 'decision', t.id);
+  t.memory.unshift((ok?'✓ ':'✗ ')+(ok?msgGood:msgBad));
+  if(t.memory.length>5) t.memory.pop();
+}
+function evaluateDecisions(){
+  for(let i=G.decisions.length-1; i>=0; i--){
+    const d = G.decisions[i];
+    if(G.day - d.day < d.horizon) continue;
+    G.decisions.splice(i,1);
+    const t = townById(d.townId);
+    if(!t || t.dead) continue;
+    const o = d.args.other!==undefined ? townById(d.args.other) : null;
+    switch(d.kind){
+      case 'feast_or_store':
+        if(d.choice===0) judge(t, t.starvingDays===0 && t.happiness>=d.base.hap-5, 'the feast lifted every heart', 'the feast emptied the stores before winter', 4);
+        else judge(t, t.starvingDays===0, 'the stored grain carried them through', 'they hoarded grain yet hungered anyway', 4);
+        break;
+      case 'irrigation':
+        if(d.choice===0) judge(t, t.res.food > d.base.food*0.9 && t.starvingDays===0, 'the channels made the fields sing', 'the ditches ran dry and the timber was wasted', 5);
+        break;
+      case 'standing_army':
+        if(d.choice===0){
+          const fought = t.flags.armyTested;
+          judge(t, t.starvingDays===0 || fought, fought?'the warband held when it mattered':'the warband keeps the peace', 'the idle warband ate them into hunger', 5);
+        } else {
+          judge(t, !t.flags.wasRaided, 'peace held without spears', 'unarmed, they paid in blood for your caution', 6);
+        }
+        break;
+      case 'festival':
+        if(d.choice===0) judge(t, t.starvingDays===0, 'the festival is still sung about', 'they danced, then starved', 4);
+        break;
+      case 'open_borders':
+        if(d.choice===0) judge(t, t.starvingDays===0 && t.happiness>=d.base.hap-8, 'the newcomers wove themselves in', 'the newcomers strained every granary', 4);
+        else if(o) judge(t, getRel(t.id,o.id)>-30, 'the gates stayed shut without grudge', 'turned-away wanderers spread bitter words', 3);
+        break;
+      case 'grand_temple':
+        if(d.choice===0) judge(t, !!t.flags.temple, 'the temple stands, and hearts rise with it', 'the temple was never finished — stone and pride wasted', 6);
+        break;
+      case 'explore_expedition':
+        if(d.choice===0) judge(t, !!d.args.found, 'the expedition returned with wonders', 'the expedition never returned', 4);
+        break;
+      case 'rest_fields':
+        if(d.choice===0) judge(t, terrOf(t).fertAvg > (d.args.fert0||0)+0.02, 'the rested land breathes again', 'the fallow season bought nothing', 4);
+        else judge(t, t.starvingDays===0, 'the hard plowing fed them — for now', 'they plowed the land to dust', 5);
+        break;
+      case 'war_counsel':
+        if(d.choice===0){ // urged war
+          judge(t, d.args.won===true, 'the war you urged was won', d.args.won===false?'the war you urged was lost':'the war you urged brought only graves', 9);
+        } else {
+          judge(t, !d.args.attacked, 'restraint kept the peace', 'your caution left them unready when the enemy came', 6);
+        }
+        break;
+      case 'peace_counsel':
+        if(d.choice===0) judge(t, !warOf(t), 'the peace you sought has held', 'peace slipped away despite your counsel', 6);
+        else judge(t, d.args.won===true, 'fighting on brought victory', 'fighting on brought ruin', 8);
+        break;
+      case 'aid_famine':
+        if(d.choice===0){ judge(t, true, 'the grain you sent saved '+(o?o.name:'a neighbor'), '', 5); if(o&&!o.dead){ o.faith=clamp(o.faith+6,0,100); addRel(t.id,o.id,20);} }
+        else if(o) judge(t, !o.dead && o.starvingDays===0, 'the neighbor endured without you', 'they watched '+(o?o.name:'a neighbor')+' wither and remember it', 5);
+        break;
+      case 'ration':
+        if(d.choice===0) judge(t, popOf(t) > d.base.pop*0.93, 'strict rations carried them through', 'they rationed, and still dug small graves', 5);
+        else judge(t, popOf(t) > d.base.pop*0.93, 'plenty returned without harsh measures', 'each family fending alone left the weakest behind', 5);
+        break;
+      case 'quarantine':
+        if(d.choice===0) judge(t, popOf(t) > d.base.pop*0.9, 'the closed gates held back the worst', 'the sickness took them despite the sealed gates', 5);
+        else judge(t, popOf(t) > d.base.pop*0.9, 'the open roads cost less than feared', 'the open roads carried death from house to house', 6);
+        break;
+      case 'tolerate_faith':
+        if(d.choice===0) judge(t, t.happiness>=d.base.hap-5, 'the two faiths learned to share the square', 'the mingled faiths brawl in the streets', 4);
+        else judge(t, true, 'the old ways stand unchallenged', '', 2);
+        break;
+    }
+  }
+}
+
+/* --- applying a player's answer --- */
+function resolvePrompt(p, choiceIdx, inputValue){
+  const t = p.townId!==undefined ? townById(p.townId) : null;
+  const o = p.args && p.args.other!==undefined ? townById(p.args.other) : null;
+  const worldKind = (p.kind==='name_planet'||p.kind==='name_star'||p.kind==='name_body'||p.kind==='name_craft'||p.kind==='name_offworld'||p.kind==='milestone_cheer');
+  if(!worldKind && (!t || t.dead)) return;
+  switch(p.kind){
+    /* ---- naming prompts ---- */
+    case 'name_planet':
+      G.planetName = (inputValue||suggestName('planet')).slice(0,18);
+      chron('The world has a name: '+G.planetName, 'astro');
+      break;
+    case 'name_star':
+      G.starName = (inputValue||suggestName('star')).slice(0,18);
+      chron('The sun is named '+G.starName+'. The sky feels closer.', 'astro');
+      allFaith(2);
+      break;
+    case 'name_craft': {
+      const nm = (inputValue||'').trim().slice(0,24) || suggestName('star');
+      G.bodies.push({name:nm, type:'satellite', day:G.day});
+      chron('They call the made star '+nm+'. Children point as it crosses the dark.', 'astro', p.townId);
+      break;
+    }
+    case 'name_offworld': {
+      const nm = (inputValue||'').trim().slice(0,24) || suggestName('town');
+      G.offworld = {name:nm, on:p.args.target, day:G.day};
+      chron(nm+' — the first hearth on '+p.args.target+'. The world has seeded another.', 'mile', p.townId);
+      G.faith = clamp(G.faith+8, 0, 100);
+      break;
+    }
+    case 'name_body': {
+      const nm = (inputValue||suggestName('body')).slice(0,18);
+      G.bodies.push({name:nm, type:p.args.type, day:G.day});
+      chron(p.args.type==='moon' ? ('A moon is charted and named '+nm) : ('A wandering light is named: the planet '+nm), 'astro');
+      allFaith(1);
+      break; }
+    case 'name_town': {
+      const nm = (inputValue||suggestName('town')).slice(0,14);
+      if(t){ t.name = nm; chron('The new settlement takes the name '+nm, 'town', t.id); }
+      break; }
+    case 'name_species': {
+      const sp = G.species[p.args.spIdx];
+      if(sp){
+        sp.name = (inputValue||sp.suggest).slice(0,24);
+        sp.namedBy = t ? t.name : '?';
+        chron(t.name+' records a new '+sp.kind+': "'+sp.name+'"', 'species', t?t.id:undefined);
+        if(t){
+          if(sp.kind==='plant') t.flags.cropBonus = (t.flags.cropBonus||0)+0.05;
+          else if(sp.kind==='beast') t.flags.herdBonus = (t.flags.herdBonus||0)+0.06;
+          else t.flags.fishBonus = (t.flags.fishBonus||0)+0.06;
+          t.faith = clamp(t.faith+2,0,100);
+        }
+      }
+      break; }
+    case 'choose_heir': {
+      if(t){
+        const cand = p.args.cands[choiceIdx];
+        const np = spawnPerson(t, 'leader');
+        np.name = cand.name; np.epithet = cand.epithet;
+        t.leader = np.id;
+        t.culture.mil = clamp(t.culture.mil + cand.mil, -1, 1);
+        t.culture.spi = clamp(t.culture.spi + cand.spi, -1, 1);
+        t.morale = clamp(t.morale + cand.mor, 0, 100);
+        chron(personLabel(np)+' now leads '+t.name, 'people', t.id);
+      }
+      break; }
+    /* ---- policy prompts (choice 0 = first option) ---- */
+    case 'feast_or_store':
+      if(choiceIdx===0){ t.res.food*= .55; t.hapBuf+=14; chron(t.name+' feasts late into the night.', 'town', t.id); }
+      else { t.hapBuf-=3; t.flags.stored=true; chron(t.name+' seals the surplus away.', 'town', t.id); }
+      recordDecision('feast_or_store', t.id, choiceIdx, {}, 25);
+      break;
+    case 'irrigation':
+      if(choiceIdx===0){ t.res.wood-=35; t.flags.irrigation=true; chron(t.name+' digs channels to its fields.', 'town', t.id); }
+      recordDecision('irrigation', t.id, choiceIdx, {}, 35);
+      break;
+    case 'standing_army':
+      if(choiceIdx===0){ t.flags.army=true; t.morale=clamp(t.morale+10,0,100); t.culture.mil=clamp(t.culture.mil+.1,-1,1); chron(t.name+' raises a standing warband.', 'war', t.id); }
+      recordDecision('standing_army', t.id, choiceIdx, {}, 45);
+      break;
+    case 'festival':
+      if(choiceIdx===0){ t.res.food = Math.max(0, t.res.food - popOf(t)*0.5); t.hapBuf+=16; chron('Lanterns and song fill '+t.name+'.', 'town', t.id); }
+      recordDecision('festival', t.id, choiceIdx, {}, 20);
+      break;
+    case 'open_borders':
+      if(choiceIdx===0 && o){ const m=Math.min(6+o.pop.w*0.05, 14); o.pop.w=Math.max(0,o.pop.w-m*.7); o.pop.c=Math.max(0,o.pop.c-m*.3); t.pop.w+=m*.7; t.pop.c+=m*.3; addRel(t.id,o.id,12); t.culture.ope=clamp(t.culture.ope+.08,-1,1); chron('Wanderers from '+o.name+' settle in '+t.name+'.', 'town', t.id); }
+      else if(o){ addRel(t.id,o.id,-10); }
+      recordDecision('open_borders', t.id, choiceIdx, {other:o?o.id:undefined}, 30);
+      break;
+    case 'grand_temple':
+      if(choiceIdx===0){ t.flags.templeBuild = 40; chron(t.name+' begins raising a great temple.', 'religion', t.id); }
+      recordDecision('grand_temple', t.id, choiceIdx, {}, 55);
+      break;
+    case 'explore_expedition': {
+      let found=false;
+      if(choiceIdx===0){
+        t.res.food = Math.max(0, t.res.food-18);
+        if(chance(.62)){ found=true; t.res.know+=ri(6,14); discoverSpecies(t, true); }
+        else { t.pop.w=Math.max(0,t.pop.w-3); chron('An expedition from '+t.name+' walks beyond the maps... and is not seen again.', 'town', t.id); }
+      }
+      recordDecision('explore_expedition', t.id, choiceIdx, {found}, 22);
+      break; }
+    case 'rest_fields': {
+      const f0 = terrOf(t).fertAvg;
+      if(choiceIdx===0){ t.flags.fallowUntil = G.day+30; chron(t.name+' lets its fields lie fallow.', 'town', t.id); }
+      else { t.flags.plowHard = G.day+30; }
+      recordDecision('rest_fields', t.id, choiceIdx, {fert0:f0}, 38);
+      break; }
+    case 'war_counsel':
+      if(o){
+        if(choiceIdx===0){ addRel(t.id,o.id,-28); t.morale=clamp(t.morale+12,0,100); t.culture.mil=clamp(t.culture.mil+.1,-1,1); chron('The Voice counsels war. '+t.name+' sharpens its spears against '+o.name+'.', 'war', t.id); }
+        else { addRel(t.id,o.id,22); t.culture.mil=clamp(t.culture.mil-.06,-1,1); chron('The Voice counsels restraint. '+t.name+' stays its hand.', 'town', t.id); }
+        recordDecision('war_counsel', t.id, choiceIdx, {other:o.id}, 50);
+      }
+      break;
+    case 'peace_counsel':
+      if(o){
+        const w = warOf(t);
+        if(choiceIdx===0 && w){ w.peaceSeek = (w.peaceSeek||0)+1; addRel(t.id,o.id,15); chron(t.name+' sends envoys under a white bough.', 'war', t.id); }
+        else if(w){ t.morale=clamp(t.morale+8,0,100); w.fightOn=true; }
+        recordDecision('peace_counsel', t.id, choiceIdx, {other:o.id}, 40);
+      }
+      break;
+    case 'aid_famine':
+      if(o){
+        if(choiceIdx===0){ const amt=Math.min(t.res.food*.4, popOf(o)*1.2); t.res.food-=amt; o.res.food+=amt; o.starvingDays=0; chron('Grain carts roll from '+t.name+' to hungry '+o.name+'.', 'trade', t.id); }
+        recordDecision('aid_famine', t.id, choiceIdx, {other:o.id}, 25);
+      }
+      break;
+    case 'ration':
+      if(choiceIdx===0){ t.flags.rationUntil = G.day+25; t.hapBuf-=5; chron(t.name+' measures out grain by the cupful.', 'town', t.id); }
+      recordDecision('ration', t.id, choiceIdx, {}, 26);
+      break;
+    case 'quarantine':
+      if(choiceIdx===0){ t.flags.quarantine=true; t.hapBuf-=8; chron(t.name+' seals its gates against the sickness.', 'disaster', t.id); }
+      recordDecision('quarantine', t.id, choiceIdx, {}, 30);
+      break;
+    case 'tolerate_faith': {
+      const r = religionById(p.args.relig);
+      if(choiceIdx===0 && r){ t.religion = r.id; t.culture.ope=clamp(t.culture.ope+.1,-1,1); chron(t.name+' makes room for '+r.name+'.', 'religion', t.id); }
+      else { t.culture.tra=clamp(t.culture.tra+.1,-1,1); }
+      recordDecision('tolerate_faith', t.id, choiceIdx, {}, 25);
+      break; }
+    case 'milestone_cheer':
+      allFaith(1);
+      break;
+  }
+  // answering at all is itself a small act of presence
+  if(t && !t.dead) t.faith = clamp(t.faith + 0.4, 0, 100);
+}
+
+function autoDecideStale(){
+  for(let i=G.prompts.length-1; i>=0; i--){
+    const p = G.prompts[i];
+    if(G.day - p.day >= 5){
+      G.prompts.splice(i,1);
+      const t = p.townId!==undefined ? townById(p.townId) : null;
+      const choice = p.options ? ri(0, p.options.length-1) : 0;
+      resolvePrompt(p, choice, null);
+      if(t && !t.dead){
+        t.faith = clamp(t.faith - 3.5, 0, 100);
+        chron(t.name+' waited for the Voice, heard nothing, and chose alone.', 'faith', t.id);
+      } else if(p.kind==='name_planet'){ /* world names itself */ }
+    }
+  }
+}
+function allFaith(d){ for(const t of aliveTowns()) t.faith = clamp(t.faith+d, 0, 100); }
+
+/* ============================================================
+   DAILY SIMULATION SYSTEMS
+   ============================================================ */
+function seasonIdx(){ return Math.floor((G.day % YEAR) / SEASON_LEN); }
+function yearOf(){ return Math.floor(G.day / YEAR) + 1; }
+
+/* ---- economy & production ---- */
+function productionTick(t){
+  const c = terrOf(t);
+  const w = t.pop.w;
+  if(w<=0) return;
+  const s = G.season;
+  let cropSeason = SEASON_CROP[s];
+  if(s===3 && t.techs.shelter) cropSeason += .18;
+  if(t.droughtDays>0) cropSeason *= .45;
+  if(t.flags.fallowUntil > G.day) cropSeason *= .4;
+  if(t.flags.plowHard > G.day) cropSeason *= 1.25;
+  if(t.fertBoostUntil > G.day) cropSeason *= 1.15;
+
+  const need = t.pop.c*0.25 + t.pop.w*0.45 + t.pop.e*0.30;
+  // per-farmer yield
+  let yf = (t.techs.steam?1.25:0.90)
+    + (t.techs.agriculture?0.62:0)
+    + (t.techs.husbandry?0.22:0)
+    + (t.flags.irrigation?0.20:0)
+    + (t.flags.cropBonus||0) + (t.flags.herdBonus||0);
+  yf *= clamp(c.fertAvg,0.08,1.6) * cropSeason;
+  if(c.seaAdj>0 && (t.techs.hunting||t.techs.sailing))
+    yf += (t.techs.sailing?0.30:0.12) + (t.flags.fishBonus||0);
+  if(c.forest>2 && t.techs.hunting) yf += 0.10;
+  yf = Math.max(0.12, yf);
+
+  let farmers = Math.min(w, Math.ceil((need*1.15)/yf));
+  // land caps how many can usefully farm
+  const landCap = (c.grass*0.9 + c.coast*0.5 + c.forest*0.4 + c.dry*0.4 + c.hills*0.2) * (t.techs.agriculture?1.7:1) * (t.techs.steam?1.5:1) * (t.techs.electricity?1.25:1);
+  const foodProd = Math.min(farmers*yf, Math.max(landCap, need*0.5));
+  t.res.food += foodProd;
+
+  // overfarming: heavy use slowly tires the soil
+  const strain = clamp(farmers/(c.grass*2+4), 0, 1.4) * (t.flags.plowHard>G.day?2.2:1) * (t.flags.fallowUntil>G.day?0:1);
+  if(strain>0.5 && t.techs.agriculture){
+    for(const i of t.tiles){
+      if(G.tiles[i]===T.GRASS && chance(0.02*strain)){
+        G.fert[i] = Math.max(0.08, G.fert[i]-0.012);
+        if(G.fert[i]<0.18 && chance(.06)){ G.tiles[i]=T.DRY; G.terrainDirty=true; }
+      }
+    }
+    t.terrDirty = true;
+  }
+  // fallow recovery
+  if(t.flags.fallowUntil > G.day || strain < 0.3){
+    for(const i of t.tiles){
+      if((G.tiles[i]===T.GRASS||G.tiles[i]===T.DRY) && G.fert[i] < 1.0 && chance(.05)){
+        G.fert[i] += 0.01;
+        if(G.tiles[i]===T.DRY && G.fert[i]>0.42 && chance(.2)){ G.tiles[i]=T.GRASS; G.terrainDirty=true; }
+      }
+    }
+  }
+
+  const others = Math.max(0, w - farmers);
+  // wood / stone / metal / knowledge
+  if(c.forest>0) t.res.wood += others*0.16*Math.min(1, c.forest/14);
+  if(t.techs.masonry && (c.hills+c.mount)>0) t.res.stone += others*0.10*Math.min(1,(c.hills+c.mount)/10);
+  if(t.techs.bronze && (c.mount+c.hills*0.5)>0) t.res.metal += others*0.07*Math.min(1,(c.mount+c.hills*0.5)/8);
+  let scholars = others*0.4;
+  let kmult = 1 + (t.techs.writing?0.35:0) + (t.techs.mathematics?0.25:0) + (t.techs.currency?0.1:0) + (t.techs.printing?0.45:0) + (t.techs.optics?0.15:0) + (t.techs.electricity?0.3:0) + (t.techs.computing?0.9:0);
+  t.res.know += (0.15 + scholars*0.3)*kmult*(0.5 + t.happiness/160);
+
+  // temple construction
+  if(t.flags.templeBuild !== undefined && t.flags.templeBuild>0){
+    if(t.res.stone>=1.2){ t.res.stone-=1.2; t.flags.templeBuild--; }
+    if(t.flags.templeBuild<=0){
+      delete t.flags.templeBuild; t.flags.temple=true;
+      t.hapBuf+=10; t.culture.spi=clamp(t.culture.spi+.15,-1,1);
+      t.faith=clamp(t.faith+5,0,100);
+      chron('The great temple of '+t.name+' is complete. Smoke and song rise together.', 'religion', t.id);
+    }
+  }
+  // army upkeep
+  if(t.flags.army) t.res.food -= popOf(t)*0.06;
+  // spoilage & storage cap
+  const spoil = t.techs.pottery ? 0.002 : 0.005;
+  t.res.food *= (1-spoil);
+  const cap = 60 + popOf(t)*(t.techs.pottery?22:12);
+  t.res.food = clamp(t.res.food, 0, cap);
+  t.res.wood = clamp(t.res.wood, 0, 400); t.res.stone = clamp(t.res.stone, 0, 400); t.res.metal = clamp(t.res.metal, 0, 300);
+}
+
+/* ---- food consumption, famine, demographics ---- */
+function demographicsTick(t){
+  const need = t.pop.c*0.25 + t.pop.w*0.45 + t.pop.e*0.30;
+  t.res.food -= need * (t.flags.rationUntil>G.day ? 0.7 : 1);
+  let foodSec = 1;
+  if(t.res.food < 0){
+    const deficit = -t.res.food; t.res.food = 0;
+    foodSec = clamp(1 - deficit/Math.max(need,1), 0, 1);
+    t.starvingDays++;
+    const rate = 0.016*clamp(deficit/Math.max(need,1),0.3,2) * (t.flags.rationUntil>G.day?0.55:1);
+    const dC = t.pop.c*rate*1.6, dE = t.pop.e*rate*1.8, dW = t.pop.w*rate*0.8;
+    t.pop.c-=dC; t.pop.e-=dE; t.pop.w-=dW;
+    G.stats.famineDeaths += dC+dE+dW;
+    t.hapBuf -= 1.2;
+    if(t.starvingDays===4) chron('Hunger stalks the lanes of '+t.name+'.', 'disaster', t.id);
+    if(t.starvingDays===4 && !G.prompts.some(p=>p.townId===t.id&&p.kind==='ration')){
+      queuePrompt({kind:'ration', townId:t.id,
+        title:'Empty bowls in '+t.name,
+        body:'The stores of '+t.name+' are nearly gone. Elders ask the Voice: ration what remains — slow hunger shared by all — or let each family fend for itself?',
+        options:['Ration the stores','Let them be']});
+    }
+  } else {
+    if(t.starvingDays>0 && t.res.food>need*2) t.starvingDays=0;
+    foodSec = clamp(t.res.food/(need*6), 0.4, 1.3);
+  }
+  t.foodSec = foodSec;
+
+  // births (need at least 2 residents)
+  if(popOf(t) >= 2){
+    t.birthAcc += t.pop.w * 0.014 * clamp(foodSec,0.1,1.25) * (0.45 + t.happiness/130);
+    if(t.birthAcc >= 1){ const b=Math.floor(t.birthAcc); t.pop.c += b; t.birthAcc -= b; }
+  }
+  // aging & natural death
+  const matur = t.pop.c*0.009, retire = t.pop.w*0.0022;
+  t.pop.c -= matur; t.pop.w += matur - retire; t.pop.e += retire;
+  const med = t.techs.medicine ? 0.5 : 1;
+  t.pop.e -= t.pop.e*0.018*med;
+  t.pop.w -= t.pop.w*0.0009*med;
+  t.pop.c -= t.pop.c*0.0014*med;
+  t.pop.c=Math.max(0,t.pop.c); t.pop.w=Math.max(0,t.pop.w); t.pop.e=Math.max(0,t.pop.e);
+}
+
+/* ---- happiness, unrest, revolts ---- */
+function moodTick(t){
+  let h = 54;
+  h += (t.foodSec-0.7)*30;
+  const w = warOf(t);
+  if(w){ h -= 8 + (w.a===t.id?w.exA:w.exB)*0.15; }
+  if(t.plague) h -= 14;
+  if(t.religion!==null) h += 4;
+  if(t.flags.temple) h += 3;
+  if(t.techs.weaving) h += 2;
+  if(t.techs.philosophy) h += 3;
+  const dens = popOf(t)/Math.max(t.tiles.length,1);
+  if(dens > 1.6) h -= (dens-1.6)*8;
+  // culture fit: martial folk resent long peace? mild flavor only
+  if(w && t.culture.mil < -0.3) h -= 4;
+  t.hapBuf *= 0.92;
+  h += t.hapBuf;
+  t.happiness = clamp(lerp(t.happiness, clamp(h,0,100), 0.12), 0, 100);
+
+  // conquered peoples remember their fallen banner
+  if(t.flags.conqueredPeople > 0){
+    t.flags.conqueredPeople *= 0.997; // generations forget, slowly
+    if(t.flags.conqueredPeople < 2) delete t.flags.conqueredPeople;
+    else if(chance(0.003 * Math.min(t.flags.conqueredPeople/popOf(t), 1))){
+      t.unrest += ri(6,14);
+      t.hapBuf -= 4;
+      chron('The conquered of '+t.name+' stir — old songs, old banners, sharpened tools.', 'people', t.id);
+    }
+  }
+  if(t.happiness < 26) t.unrest += 1 + (t.happiness<14?1:0);
+  else t.unrest = Math.max(0, t.unrest-0.7);
+
+  if(t.unrest > 26 && popOf(t) > 12){
+    t.unrest = 0;
+    if(chance(.5)){
+      // leadership overthrown
+      const old = personById(t.leader);
+      if(old && old.alive){ old.alive=false; chron('Rioters drag '+personLabel(old)+' from the hall of '+t.name+'. A revolution!', 'people', t.id); }
+      const nl = spawnPerson(t,'leader'); t.leader = nl.id;
+      t.morale = clamp(t.morale-15,0,100);
+      t.faith = clamp(t.faith-8,0,100);
+      t.hapBuf += 10;
+      G.stats.revolutions++;
+      chron(personLabel(nl)+' seizes power in '+t.name+'.', 'people', t.id);
+    } else if(t.tiles.length > 14){
+      // breakaway settlement
+      const far = t.tiles.reduce((a,b)=> distCap(t,b)>distCap(t,a)?b:a, t.tiles[0]);
+      const moved = {c:t.pop.c*.3, w:t.pop.w*.3, e:t.pop.e*.3};
+      t.pop.c-=moved.c; t.pop.w-=moved.w; t.pop.e-=moved.e;
+      const grab = t.tiles.filter(i=>dist2(i,far)<30);
+      for(const i of grab) releaseTile(t,i);
+      const nt = newTown(far, {name:'Free '+t.name, pop:moved, culture:t.culture, religion:t.religion, parent:t.id});
+      for(const i of grab) claimTile(nt,i);
+      G.rel[relKey(t.id,nt.id)] = -45;
+      t.faith = clamp(t.faith-10,0,100);
+      G.stats.revolutions++;
+      chron('Rebels split from '+t.name+' and raise their own banner: '+nt.name+'.', 'town', nt.id);
+    }
+  }
+}
+function distCap(t,i){ return Math.hypot(i%W - t.cap[0], Math.floor(i/W) - t.cap[1]); }
+function dist2(i,j){ return Math.hypot(i%W - j%W, Math.floor(i/W) - Math.floor(j/W)); }
+
+/* ---- research & discovery ---- */
+function researchTick(t){
+  if(!t.research){
+    const avail = TECH_IDS.filter(id=>{
+      if(t.techs[id]) return false;
+      const tc = TECHS[id];
+      if(tc.era > t.era+1) return false;
+      return tc.req.every(r=>t.techs[r]);
+    });
+    if(avail.length){
+      avail.sort((a,b)=>TECHS[a].cost - TECHS[b].cost);
+      t.research = chance(.7) ? avail[0] : pick(avail);
+    }
+  }
+  if(t.research){
+    let cost = TECHS[t.research].cost;
+    // diffusion: neighbors/trade partners who know it make it cheaper
+    const known = aliveTowns().some(o=>o.id!==t.id && o.techs[t.research] && (hasRoute(t,o)||capDist(t,o)<16 || t.techs.printing || t.techs.signals));
+    if(known) cost *= (t.techs.signals ? 0.45 : 0.55);
+    if(t.res.know >= cost){
+      t.res.know -= cost;
+      t.techs[t.research] = true;
+      const tech = TECHS[t.research];
+      const id = t.research; t.research = null;
+      // era recompute
+      let maxEra = 0; let count={};
+      for(const k in t.techs){ const e=TECHS[k].era; count[e]=(count[e]||0)+1; }
+      for(let e=0;e<ERAS.length;e++){ if((count[e]||0)>=2) maxEra=e; }
+      const eraUp = maxEra > t.era;
+      t.era = Math.max(t.era, maxEra);
+      let credit = '';
+      if(chance(.35)){
+        const inv = spawnPerson(t,'inventor');
+        famePerson(inv, 'discovered '+tech.name, 2);
+        credit = ' — the work of '+personLabel(inv);
+      }
+      chron(t.name+' masters '+tech.name+credit+'.', 'tech', t.id);
+      if(eraUp){ chron(t.name+' enters '+ERAS[t.era]+'.', 'mile', t.id); t.hapBuf+=8; t.faith=clamp(t.faith+2,0,100); }
+      if(id==='astronomy') onAstronomy(t);
+      if(id==='sailing'){ chron('Sails rise off the coast of '+t.name+'.', 'tech', t.id); }
+    }
+  }
+}
+function onAstronomy(t){
+  if(!G.starName && !G.prompts.some(p=>p.kind==='name_star')){
+    queuePrompt({kind:'name_star', townId:t.id, input:true, suggest:NG.star(),
+      title:'The sun, measured',
+      body:'Stargazers of '+t.name+' have charted the wheel of the sky, and now ask the Voice: what is the name of the light that warms this world?',
+      options:['So be it']});
+  }
+}
+
+/* ---- relations, wars ---- */
+function relationsTick(){
+  const towns = aliveTowns();
+  for(let i=0;i<towns.length;i++){
+    for(let j=i+1;j<towns.length;j++){
+      const a=towns[i], b=towns[j];
+      const k = relKey(a.id,b.id);
+      const cur = getRel(a.id,b.id);
+      let target = (cultureSim(a,b)-0.5)*60;
+      target += (ihash(a.id*7+3, b.id*7+5, SEEDN+99)-0.5)*60; // old rivalries, old friendships
+      if(a.starvingDays>2 || b.starvingDays>2) target -= 18;   // hunger sharpens knives
+      if(a.religion!==null && a.religion===b.religion) target += 12;
+      else if(a.religion!==null && b.religion!==null && a.religion!==b.religion){
+        target -= 10;
+        if(a.culture.spi>0.5 && b.culture.spi>0.5) target -= 12; // zealotry
+      }
+      if(hasRoute(a,b)) target += 10;
+      if(bordering(a,b)){
+        // crowding: the fuller the world, the sharper the elbows
+        target -= 12 + Math.min(16, (a.tiles.length+b.tiles.length)/34) + Math.min(18, towns.length*0.5);
+        if(!atWar(a,b) && chance(0.004)){
+          addRel(a.id,b.id,-7);
+          if(chance(.3)) chron('Herders quarrel where '+a.name+' meets '+b.name+'.', 'war', a.id);
+        }
+      }
+      target -= (a.culture.mil + b.culture.mil)*6;
+      if(atWar(a,b)) target = -80;
+      G.rel[k] = clamp(cur + (target-cur)*0.02 + rf(-0.8,0.8), -100, 100);
+
+      // war declarations
+      if(!atWar(a,b) && G.rel[k] < -30 && G.day>a.protectedUntil && G.day>b.protectedUntil
+         && !(a.warWearyUntil>G.day) && !(b.warWearyUntil>G.day) && !warOf(a) && !warOf(b)){
+        const aggression = 0.03 + Math.max(a.culture.mil,b.culture.mil)*0.03;
+        if(chance(aggression)) declareWar(a,b);
+      }
+    }
+  }
+}
+function bordering(a,b){
+  // cheap check: capital distance under combined territory radius
+  return capDist(a,b) < Math.sqrt(a.tiles.length) + Math.sqrt(b.tiles.length) + 2;
+}
+function declareWar(a,b){
+  G.wars.push({a:a.id,b:b.id,start:G.day,exA:0,exB:0,over:false,peaceSeek:0});
+  G.rel[relKey(a.id,b.id)] = -80;
+  G.routes = G.routes.filter(r=>!((r.a===a.id&&r.b===b.id)||(r.a===b.id&&r.b===a.id)));
+  if(chance(.5)){ const g=spawnPerson(a,'general'); famePerson(g,'led the war against '+b.name,1); }
+  a.flags.armyTested = a.flags.army||a.flags.armyTested; b.flags.armyTested = b.flags.army||b.flags.armyTested;
+  G.stats.wars++;
+  chron('WAR — '+a.name+' marches against '+b.name+'.', 'war', a.id);
+  // resolve outstanding counsel decisions about this pair
+  for(const d of G.decisions){
+    if(d.kind==='war_counsel' && ((d.townId===a.id&&d.args.other===b.id)||(d.townId===b.id&&d.args.other===a.id))){
+      if(d.choice===1) d.args.attacked = true;
+    }
+  }
+}
+function power(t){
+  const gen = G.people.some(p=>p.alive&&p.role==='general'&&p.townId===t.id) ? 1.22 : 1;
+  return Math.pow(Math.max(t.pop.w,1), 0.85)
+    * (1 + (t.techs.bronze?0.35:0) + (t.techs.masonry?0.12:0) + (t.techs.steel?0.45:0) + (t.techs.signals?0.15:0))
+    * (0.55 + t.morale/120)
+    * (0.6 + clamp(t.foodSec||1,0,1.3)*0.45)
+    * (t.flags.army?1.3:1)
+    * (0.9 + Math.min(t.res.metal,30)/30*0.25)
+    * gen;
+}
+function warsTick(){
+  for(const w of G.wars){
+    if(w.over) continue;
+    const a=townById(w.a), b=townById(w.b);
+    if(!a||!b||a.dead||b.dead){ w.over=true; continue; }
+    if(chance(.45)){
+      const pa=power(a), pb=power(b);
+      const ratio = pa/(pa+pb);
+      const lossA = b.pop.w * 0.018 * (1-ratio) * rf(.6,1.4);
+      const lossB = a.pop.w * 0.018 * ratio * rf(.6,1.4);
+      a.pop.w = Math.max(0, a.pop.w - lossA*1.0 - a.pop.w*0.004);
+      b.pop.w = Math.max(0, b.pop.w - lossB*1.0 - b.pop.w*0.004);
+      w.exA += (lossA/Math.max(popOf(a),1))*220 + 0.35;
+      w.exB += (lossB/Math.max(popOf(b),1))*220 + 0.35;
+      G.stats.warDeaths += lossA+lossB;
+      // territory raids: stronger side takes frontier tiles
+      const winner = ratio>0.5 ? a : b, loser = winner===a?b:a;
+      if(chance(.5) && loser.tiles.length>5){
+        let flipped=0;
+        for(let k=loser.tiles.length-1;k>=0&&flipped<2;k--){
+          const i=loser.tiles[k];
+          if(adjacentToTown(i,winner.id)){ releaseTile(loser,i); claimTile(winner,i); flipped++; }
+        }
+        if(flipped===0 && chance(.4)){ loser.res.food*= .9; loser.flags.wasRaided=true; }
+      } else if(chance(.3)){ loser.res.food *= .92; loser.flags.wasRaided=true; }
+    }
+    // resolutions
+    const exT = 70 - (w.fightOn?15:0) + (w.peaceSeek||0)*-8;
+    if(popOf(a)<7 || a.tiles.length<3){ conquer(b,a,w); continue; }
+    if(popOf(b)<7 || b.tiles.length<3){ conquer(a,b,w); continue; }
+    if((w.exA>exT && w.exB>exT) || (w.peaceSeek>=2)){
+      w.over=true; G.rel[relKey(a.id,b.id)] = -15;
+      a.warWearyUntil = G.day + ri(110,180); b.warWearyUntil = G.day + ri(110,180);
+      chron('Exhausted, '+a.name+' and '+b.name+' lay down their spears. An uneasy truce.', 'war');
+      finishWarCounsel(a,b,null);
+      continue;
+    }
+    const pa=power(a), pb=power(b);
+    if(w.exB>48 && pa>pb*1.9){ surrender(a,b,w); continue; }
+    if(w.exA>48 && pb>pa*1.9){ surrender(b,a,w); continue; }
+  }
+  G.wars = G.wars.filter(w=>!w.over || G.day-w.start<2);
+}
+function adjacentToTown(i, townId){
+  const x=i%W,y=Math.floor(i/W);
+  if(x>0&&G.TO[i-1]===townId)return true;
+  if(x<W-1&&G.TO[i+1]===townId)return true;
+  if(y>0&&G.TO[i-W]===townId)return true;
+  if(y<H-1&&G.TO[i+W]===townId)return true;
+  return false;
+}
+function surrender(winner, loser, w){
+  w.over = true;
+  winner.warWearyUntil = G.day + ri(90,150); loser.warWearyUntil = G.day + ri(160,240);
+  // cede ~25% of tiles nearest winner + tribute
+  const ceded = loser.tiles.slice().sort((i,j)=>distCap(winner,i)-distCap(winner,j)).slice(0, Math.floor(loser.tiles.length*0.25));
+  for(const i of ceded){ releaseTile(loser,i); claimTile(winner,i); }
+  const trib = loser.res.food*0.3; loser.res.food-=trib; winner.res.food+=trib;
+  winner.res.metal += loser.res.metal*0.4; loser.res.metal*=0.6;
+  winner.warsWon++; winner.morale=clamp(winner.morale+10,0,100); winner.hapBuf+=8;
+  loser.morale=clamp(loser.morale-15,0,100); loser.faith=clamp(loser.faith-5,0,100); loser.hapBuf-=6;
+  G.rel[relKey(winner.id,loser.id)] = -25;
+  chron(loser.name+' kneels. Land and grain flow to '+winner.name+'.', 'war', winner.id);
+  finishWarCounsel(winner, loser, winner.id);
+}
+function conquer(winner, loser, w){
+  w.over = true;
+  winner.warWearyUntil = G.day + ri(130,200);
+  // population transfer + unrest seed
+  winner.pop.c += loser.pop.c*0.6; winner.pop.w += loser.pop.w*0.55; winner.pop.e += loser.pop.e*0.6;
+  winner.unrest += 8; winner.flags.conqueredPeople = (winner.flags.conqueredPeople||0) + popOf(loser)*0.6;
+  for(const i of loser.tiles.slice()) { releaseTile(loser,i); claimTile(winner,i); }
+  loser.dead = true; loser.diedDay = G.day;
+  const ldr = personById(loser.leader); if(ldr) ldr.alive=false;
+  winner.warsWon++; winner.morale=clamp(winner.morale+12,0,100);
+  G.stats.townsFallen++;
+  chron(loser.name+' has fallen. '+winner.name+' absorbs its people and its lands.', 'war', winner.id);
+  finishWarCounsel(winner, loser, winner.id);
+}
+function finishWarCounsel(a, b, winnerId){
+  for(const d of G.decisions){
+    if((d.kind==='war_counsel'||d.kind==='peace_counsel')){
+      const pair = (d.townId===a.id&&d.args.other===b.id)||(d.townId===b.id&&d.args.other===a.id);
+      if(pair && winnerId!==null) d.args.won = (d.townId===winnerId);
+      else if(pair) d.args.won = null;
+    }
+  }
+}
+
+/* ---- trade routes ---- */
+function tradeTick(){
+  const towns = aliveTowns();
+  // prune dead/hostile routes
+  G.routes = G.routes.filter(r=>{
+    const a=townById(r.a), b=townById(r.b);
+    return a&&b&&!a.dead&&!b.dead&&!atWar(a,b)&&getRel(a.id,b.id)>0;
+  });
+  // form new
+  for(let i=0;i<towns.length;i++)for(let j=i+1;j<towns.length;j++){
+    const a=towns[i], b=towns[j];
+    if(hasRoute(a,b) || atWar(a,b)) continue;
+    if(routeCount(a)>=3 || routeCount(b)>=3) continue;
+    if(getRel(a.id,b.id) < 25) continue;
+    const d = capDist(a,b);
+    const landRange = (a.techs.flight&&b.techs.flight)?200:((a.techs.signals&&b.techs.signals)?55:((a.techs.wheel&&b.techs.wheel)?30:18));
+    const seaOk = a.techs.sailing && b.techs.sailing && terrOf(a).seaAdj>0 && terrOf(b).seaAdj>0;
+    if(d < landRange || (seaOk && d < ((a.techs.navigation&&b.techs.navigation)?110:60))){
+      if(chance(.06)){
+        G.routes.push({a:a.id,b:b.id,sea:(d>=landRange)});
+        chron('Carts'+((d>=landRange)?' and sails':'')+' now run between '+a.name+' and '+b.name+'.', 'trade', a.id);
+      }
+    }
+  }
+  // route effects
+  for(const r of G.routes){
+    const a=townById(r.a), b=townById(r.b);
+    addRel(a.id,b.id, 0.1);
+    const cur = (a.techs.currency&&b.techs.currency) ? 1.6 : 1;
+    // food smoothing toward the hungrier town
+    const na = a.res.food/Math.max(popOf(a),1), nb = b.res.food/Math.max(popOf(b),1);
+    if(na > nb*1.6 && a.res.food>20){ const m=Math.min(a.res.food*0.05*cur, 6); a.res.food-=m; b.res.food+=m*0.9; }
+    else if(nb > na*1.6 && b.res.food>20){ const m=Math.min(b.res.food*0.05*cur, 6); b.res.food-=m; a.res.food+=m*0.9; }
+    a.res.know += 0.06*cur; b.res.know += 0.06*cur;
+    a.hapBuf += 0.04*cur; b.hapBuf += 0.04*cur;
+    a.culture.ope = clamp(a.culture.ope+0.0005,-1,1); b.culture.ope = clamp(b.culture.ope+0.0005,-1,1);
+  }
+}
+function routeCount(t){ return G.routes.filter(r=>r.a===t.id||r.b===t.id).length; }
+
+/* ---- religion & culture ---- */
+function beliefTick(){
+  for(const t of aliveTowns()){
+    // drift
+    t.culture.mil = clamp(t.culture.mil + rf(-.004,.004) + (warOf(t)?.0015:-.0006), -1, 1);
+    t.culture.spi = clamp(t.culture.spi + rf(-.004,.004) + (t.flags.temple?.0008:0), -1, 1);
+    t.culture.ope = clamp(t.culture.ope + rf(-.004,.004), -1, 1);
+    t.culture.tra = clamp(t.culture.tra + rf(-.004,.004), -1, 1);
+
+    // founding
+    if(t.religion===null && t.era>=1 && t.culture.spi>0.15 && chance(.0035 + (t.starvingDays>0?.004:0))){
+      const prophet = spawnPerson(t,'prophet');
+      famePerson(prophet,'founded a faith',3);
+      foundReligion(t, prophet, t.faith>78 && chance(.55));
+    }
+    // spread along routes / borders
+    if(t.religion!==null){
+      for(const o of aliveTowns()){
+        if(o.id===t.id || o.religion===t.religion) continue;
+        const linked = hasRoute(t,o) || bordering(t,o);
+        if(!linked) continue;
+        if(chance(0.006 * (0.5+o.culture.spi))){
+          if(o.religion===null){
+            if(chance(.5)){ o.religion=t.religion; chron(religionById(t.religion).name+' takes root in '+o.name+'.', 'religion', o.id); }
+            else if(!G.prompts.some(p=>p.townId===o.id)){
+              queuePrompt({kind:'tolerate_faith', townId:o.id, args:{relig:t.religion},
+                title:'A foreign creed', body:'Preachers of '+religionById(t.religion).name+' have arrived in '+o.name+', drawing curious crowds. Shall the town make room for this faith?',
+                options:['Make room','Hold to our ways']});
+            }
+          } else if(chance(.25) && !G.prompts.some(p=>p.townId===o.id)){
+            queuePrompt({kind:'tolerate_faith', townId:o.id, args:{relig:t.religion},
+              title:'Two creeds, one square', body:religionById(t.religion).name+' is winning converts inside '+o.name+', to the alarm of its old faith. Tolerate the newcomers?',
+              options:['Tolerate them','Drive them out']});
+          }
+        }
+      }
+      // player cult dynamics
+      const r = religionById(t.religion);
+      if(r && r.playerCult){
+        t.faith = clamp(t.faith + 0.12, 0, 100);
+        if(t.faith < 28 && chance(.02)){
+          r.name = 'Reformed ' + r.name.replace(/^Reformed /,'');
+          r.playerCult = false;
+          t.faith = clamp(t.faith-5,0,100);
+          chron('Disillusioned priests in '+t.name+' recast their creed: '+r.name+' no longer answers to the Voice.', 'religion', t.id);
+        }
+      }
+    }
+  }
+}
+
+/* ---- migration & colonies ---- */
+function migrationTick(){
+  for(const t of aliveTowns()){
+    if(t.happiness < 33 && popOf(t) > 6 && chance(.5)){
+      const em = popOf(t)*0.012;
+      const dest = aliveTowns().filter(o=>o.id!==t.id && getRel(t.id,o.id)>15 && o.happiness>t.happiness+15 && capDist(t,o)<45)
+        .sort((a,b)=>b.happiness-a.happiness)[0];
+      t.pop.c-=em*.3; t.pop.w-=em*.55; t.pop.e-=em*.15;
+      if(dest){ dest.pop.c+=em*.3; dest.pop.w+=em*.55; dest.pop.e+=em*.15; addRel(t.id,dest.id,1);
+        if(chance(.05)) chron('Families slip away from unhappy '+t.name+' toward '+dest.name+'.', 'town', t.id);
+      }
+    }
+    // colony founding
+    const dens = popOf(t)/Math.max(t.tiles.length,1);
+    const range = t.techs.flight ? 70 : (t.techs.navigation ? 46 : (t.techs.cartography ? 34 : (t.techs.sailing ? 26 : 17)));
+    if(popOf(t)>34 && t.tiles.length>26 && dens>0.55 && chance(.022)){
+      const spot = findSettleSpot(G.tiles, G.fert, t.cap, 9, range);
+      if(spot>=0){
+        const settlers = {c:t.pop.c*.18, w:t.pop.w*.2, e:t.pop.e*.1};
+        t.pop.c-=settlers.c; t.pop.w-=settlers.w; t.pop.e-=settlers.e;
+        const nt = newTown(spot, {pop:settlers, culture:t.culture, religion:t.religion, parent:t.id});
+        for(const ax of ['mil','spi','ope','tra']) nt.culture[ax] = clamp(nt.culture[ax] + rf(-0.3,0.3), -1, 1);
+        G.rel[relKey(t.id,nt.id)] = 45;
+        if(chance(.6)){ const ex=spawnPerson(nt,'explorer'); famePerson(ex,'led settlers to '+nt.name,2); }
+        G.stats.colonies++;
+        chron('Settlers from '+t.name+' raise new roofs in the wilds.', 'town', nt.id);
+        queuePrompt({kind:'name_town', townId:nt.id, input:true, suggest:nt.name,
+          title:'A settlement is born',
+          body:'Settlers out of '+t.name+' have founded a new home. They turn to the Voice: what shall this place be called?',
+          options:['Name it']});
+      }
+    }
+  }
+}
+
+/* ---- territory growth/decay ---- */
+function territoryTick(t){
+  const target = clamp(Math.round(8 + popOf(t)*1.15), 9, 460);
+  if(t.tiles.length < target){
+    // claim up to 3 best adjacent tiles
+    let claims = 0;
+    const cand = [];
+    for(const i of t.tiles){
+      const x=i%W, y=Math.floor(i/W);
+      const ns=[i-1,i+1,i-W,i+W];
+      for(const j of ns){
+        if(j<0||j>=W*H) continue;
+        if(Math.abs((j%W)-x)>1) continue;
+        if(G.TO[j]===-1 && TINFO[G.tiles[j]].land) cand.push(j);
+      }
+    }
+    cand.sort((a,b)=>G.fert[b]-G.fert[a]);
+    for(const j of cand){ if(claims>=3) break; if(claimTile(t,j)) claims++; }
+  } else if(t.tiles.length > target*1.35 && t.tiles.length>10){
+    const far = t.tiles.slice().sort((a,b)=>distCap(t,b)-distCap(t,a))[0];
+    releaseTile(t, far);
+  }
+  if(popOf(t) < 2 && !t.dead){
+    t.dead = true; t.diedDay = G.day;
+    for(const i of t.tiles.slice()) releaseTile(t,i);
+    const l=personById(t.leader); if(l) l.alive=false;
+    G.stats.townsFallen++;
+    chron('The last hearth of '+t.name+' has gone cold.', 'town', t.id);
+  }
+}
+
+/* ---- disasters, plague ---- */
+function disastersTick(){
+  const towns = aliveTowns();
+  if(!towns.length) return;
+  // drought (mostly summer)
+  if(chance(G.season===1?0.012:0.003)){
+    const t = pick(towns);
+    if(t.droughtDays<=0){
+      t.droughtDays = ri(15,35) * (t.techs.engineering?0.55:1);
+      chron('The rains fail over '+t.name+'. Drought.', 'disaster', t.id);
+    }
+  }
+  // flood
+  if(chance(0.004)){
+    const coastal = towns.filter(t=>terrOf(t).seaAdj>0 || terrOf(t).coast>2);
+    if(coastal.length){
+      const t = pick(coastal);
+      const dmg = t.techs.engineering?0.12:0.28;
+      t.res.food *= (1-dmg);
+      const deaths = popOf(t)*rf(0.005,0.02)*(t.techs.engineering?0.5:1);
+      t.pop.w-=deaths*.6; t.pop.c-=deaths*.25; t.pop.e-=deaths*.15;
+      t.fertBoostUntil = G.day + 60;
+      t.hapBuf -= 6;
+      chron('Floodwaters sweep through '+t.name+'. Later, the silt will feed the fields.', 'disaster', t.id);
+    }
+  }
+  // volcano (rare, reshapes land)
+  if(chance(0.0012)){
+    let vi=-1;
+    for(let tries=0;tries<200;tries++){ const i=ri(0,W*H-1); if(G.tiles[i]===T.MOUNT){ vi=i; break; } }
+    if(vi>=0){
+      const vx=vi%W, vy=Math.floor(vi/W);
+      let touched=null;
+      for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){
+        const x=vx+dx,y=vy+dy;
+        if(x<0||y<0||x>=W||y>=H) continue;
+        if(dx*dx+dy*dy>10) continue;
+        const j=y*W+x;
+        if(TINFO[G.tiles[j]].land && G.tiles[j]!==T.MOUNT){
+          G.tiles[j]=T.ASH; G.fert[j]=0.05; G.ashHeal.push({i:j, at:G.day+ri(90,160)});
+          const own=G.TO[j]; if(own!==-1){ const t=townById(own); if(t){ touched=t; t.terrDirty=true; } }
+        }
+      }
+      G.terrainDirty = true;
+      if(touched){
+        const deaths = popOf(touched)*rf(.04,.12);
+        touched.pop.w-=deaths*.5;touched.pop.c-=deaths*.3;touched.pop.e-=deaths*.2;
+        touched.hapBuf-=14; touched.faith=clamp(touched.faith-4,0,100);
+        chron('The mountain above '+touched.name+' splits open. Fire, ash, and a sky gone dark.', 'disaster', touched.id);
+      } else chron('Far from any hearth, a mountain burns. Ash drifts over '+G.planetName+'.', 'disaster');
+    }
+  }
+  // drought countdown + desertification
+  for(const t of towns){
+    if(t.droughtDays>0){
+      t.droughtDays--;
+      if(chance(.04)){
+        const grassTiles = t.tiles.filter(i=>G.tiles[i]===T.GRASS);
+        if(grassTiles.length){ const i=pick(grassTiles); G.tiles[i]=T.DRY; G.fert[i]*=0.6; G.terrainDirty=true; t.terrDirty=true; }
+      }
+      if(t.droughtDays===0) chron('Rain returns at last to '+t.name+'.', 'disaster', t.id);
+    }
+  }
+  // ash heals into fertile slopes
+  for(let k=G.ashHeal.length-1;k>=0;k--){
+    if(G.day>=G.ashHeal[k].at){
+      const i=G.ashHeal[k].i;
+      if(G.tiles[i]===T.ASH){ G.tiles[i]=T.GRASS; G.fert[i]=1.25; G.terrainDirty=true; const o=G.TO[i]; if(o!==-1){const t=townById(o); if(t)t.terrDirty=true;} }
+      G.ashHeal.splice(k,1);
+    }
+  }
+  plagueTick();
+}
+function plagueTick(){
+  const towns = aliveTowns();
+  // spawn
+  if(chance(0.0022) && towns.length){
+    const dense = towns.filter(t=>popOf(t)/Math.max(t.tiles.length,1) > 0.9 && t.era>=1 && !t.plague);
+    if(dense.length){
+      const t = pick(dense);
+      const pl = {name:'the '+pick(['Gray','Weeping','Shaking','Winter','Crimson','Whispering'])+' '+pick(['Fever','Pox','Blight','Cough']),
+        severity: rf(0.004,0.011), towns:{}, start:G.day};
+      pl.towns[t.id] = G.day;
+      t.plague = pl;
+      G.plagues.push(pl);
+      chron(pl.name+' breaks out in crowded '+t.name+'.', 'disaster', t.id);
+      if(!G.prompts.some(p=>p.townId===t.id&&p.kind==='quarantine')){
+        queuePrompt({kind:'quarantine', townId:t.id,
+          title:'Sickness in the streets',
+          body:pl.name+' spreads through '+t.name+'. Healers beg the Voice: seal the gates and the roads — at great cost to trade and temper — or keep them open?',
+          options:['Seal the gates','Keep them open']});
+      }
+    }
+  }
+  for(const pl of G.plagues){
+    if(pl.ended) continue;
+    let active = 0;
+    for(const idStr in pl.towns){
+      const t = townById(+idStr);
+      if(!t || t.dead){ continue; }
+      const since = G.day - pl.towns[idStr];
+      const dur = (t.techs.sanitation ? 26 : (t.techs.medicine ? 38 : 65));
+      if(since > dur){ if(t.plague===pl){ t.plague=null; chron(pl.name+' loosens its grip on '+t.name+'.', 'disaster', t.id);} continue; }
+      active++;
+      t.plague = pl;
+      const mort = pl.severity * (t.techs.medicine?0.45:1) * (t.techs.sanitation?0.55:1) * (t.flags.quarantine?0.8:1);
+      const d = popOf(t)*mort;
+      t.pop.c-=d*.3; t.pop.w-=d*.4; t.pop.e-=d*.3;
+      G.stats.plagueDeaths += d;
+      // spread
+      if(!t.flags.quarantine){
+        for(const o of towns){
+          if(o.id===t.id || pl.towns[o.id]!==undefined) continue;
+          const linked = hasRoute(t,o) || bordering(t,o);
+          if(linked && chance(o.techs.sanitation ? 0.02 : 0.05)){
+            pl.towns[o.id]=G.day; o.plague=pl;
+            chron(pl.name+' reaches '+o.name+' along the roads.', 'disaster', o.id);
+            if(!G.prompts.some(p=>p.townId===o.id&&p.kind==='quarantine')){
+              queuePrompt({kind:'quarantine', townId:o.id, title:'The sickness arrives',
+                body:pl.name+' has reached '+o.name+'. Seal the gates, or trust the open road?',
+                options:['Seal the gates','Keep them open']});
+            }
+          }
+        }
+      }
+    }
+    if(active===0 && G.day-pl.start>10){
+      pl.ended=true;
+      for(const t of towns){ if(t.plague===pl){ t.plague=null; } if(t.flags.quarantine) delete t.flags.quarantine; }
+      chron(pl.name+' has burned itself out.', 'disaster');
+    }
+  }
+  G.plagues = G.plagues.filter(p=>!p.ended);
+}
+
+/* ---- species & astronomy discoveries ---- */
+function genSpeciesPool(){
+  const biomes = [
+    {b:T.GRASS, kinds:['plant','beast','beast']},
+    {b:T.FOREST,kinds:['plant','plant','beast']},
+    {b:T.HILLS, kinds:['beast','plant']},
+    {b:T.DESERT,kinds:['beast','plant']},
+    {b:T.SNOW,  kinds:['beast']},
+    {b:'sea',   kinds:['fish','fish','plant']},
+  ];
+  const list = [];
+  for(const bio of biomes){
+    for(const kind of bio.kinds){
+      list.push({biome:bio.b, kind, suggest:NG.species(kind), name:null, namedBy:null, found:false});
+    }
+  }
+  return list;
+}
+function discoverSpecies(t, force){
+  const c = terrOf(t);
+  const eligible = G.species.map((s,idx)=>({s,idx})).filter(({s})=>{
+    if(s.found) return false;
+    if(s.biome==='sea') return c.seaAdj>0 && (t.techs.sailing || force);
+    if(s.biome===T.GRASS) return c.grass>2;
+    if(s.biome===T.FOREST) return c.forest>2;
+    if(s.biome===T.HILLS) return c.hills+c.mount>2;
+    if(s.biome===T.DESERT) return c.desert>1;
+    if(s.biome===T.SNOW) return c.snow>1;
+    return false;
+  });
+  if(!eligible.length) return false;
+  const {s,idx} = pick(eligible);
+  s.found = true;
+  queuePrompt({kind:'name_species', townId:t.id, args:{spIdx:idx}, input:true, suggest:s.suggest,
+    title:'A creature unrecorded',
+    body:(s.kind==='fish'?'Fisherfolk':s.kind==='plant'?'Foragers':'Hunters')+' of '+t.name+' describe a '+s.kind+' never seen before — '+s.suggest+', they call it. What name shall be written in the records?',
+    options:['Record it']});
+  return true;
+}
+function discoveryTick(){
+  for(const t of aliveTowns()){
+    if(t.techs.hunting && chance(0.0045 + (G.people.some(p=>p.alive&&p.role==='explorer'&&p.townId===t.id)?0.008:0))){
+      discoverSpecies(t,false);
+    }
+    if(t.techs.astronomy && G.starName && chance(t.techs.optics ? 0.014 : 0.006)){
+      const type = chance(.6)?'planet':'moon';
+      if(G.bodies.length < 9 && !G.prompts.some(p=>p.kind==='name_body')){
+        queuePrompt({kind:'name_body', townId:t.id, args:{type}, input:true, suggest:NG.planet(),
+          title: type==='planet' ? 'A wandering light' : 'A companion in the dark',
+          body:'Through long instruments, stargazers of '+t.name+' have found a new '+(type==='planet'?'planet circling '+G.starName:'moon')+'. They await its name.',
+          options:['Name it']});
+      }
+    }
+  }
+}
+
+/* ---- the road to the stars ---- */
+function spaceTick(){
+  if(!G.space) G.space={prog:0,stage:0};
+  const sp = G.space;
+  if(sp.stage>=3) return;
+  const crews = aliveTowns().filter(t=>t.techs.spaceflight && t.starvingDays===0 && !warOf(t));
+  if(!crews.length) return;
+  for(const t of crews){
+    const metal = Math.min(t.res.metal, 0.6);
+    t.res.metal -= metal;
+    sp.prog += 0.25 + metal + (t.techs.computing?0.2:0);
+  }
+  const lead = crews.reduce((a,b)=>popOf(b)>popOf(a)?b:a);
+  if(sp.stage===0 && sp.prog>=60){
+    sp.stage=1; sp.prog=0;
+    chron('A point of light, made by hands, crosses the night above '+G.planetName+'.', 'astro', lead.id);
+    G.faith = clamp(G.faith+4, 0, 100); lead.faith = clamp(lead.faith+6,0,100);
+    if(!G.prompts.some(p=>p.kind==='name_craft')){
+      queuePrompt({kind:'name_craft', townId:lead.id, args:{stage:1}, input:true, suggest:NG.star(),
+        title:'A made star',
+        body:'Engineers of '+lead.name+' have set the first vessel into orbit around '+G.planetName+'. The whole world watches it pass. It needs a name.',
+        options:['Name it']});
+    }
+  } else if(sp.stage===1 && sp.prog>=160){
+    sp.stage=2; sp.prog=0;
+    const target = G.bodies.length ? pick(G.bodies).name : 'the near moon';
+    const voyager = spawnPerson(lead,'voyager');
+    famePerson(voyager, 'first to set foot beyond '+G.planetName, 5);
+    sp.firstFoot = target;
+    chron(personLabel(voyager)+' of '+lead.name+' walks upon '+target+' and looks back at '+G.planetName+'.', 'astro', lead.id);
+    G.faith = clamp(G.faith+5, 0, 100);
+    for(const t of aliveTowns()) t.hapBuf += 6;
+  } else if(sp.stage===2 && sp.prog>=320){
+    sp.stage=3; sp.prog=0;
+    const target = sp.firstFoot || (G.bodies.length ? pick(G.bodies).name : 'the near moon');
+    if(!G.prompts.some(p=>p.kind==='name_offworld')){
+      queuePrompt({kind:'name_offworld', townId:lead.id, args:{target}, input:true, suggest:NG.town(),
+        title:'A second cradle',
+        body:'Ships from '+lead.name+' have raised the first homes on '+target+'. Children will be born who have never seen '+G.planetName+'. The settlement awaits its name.',
+        options:['Name it']});
+    }
+  }
+}
+
+/* ---- people lifecycle ---- */
+function peopleTick(){
+  for(const p of G.people){
+    if(!p.alive) continue;
+    const t = townById(p.townId);
+    if(!t || t.dead){ p.alive=false; continue; }
+    if(G.day - p.born > p.lifespan){
+      p.alive = false;
+      if(p.role==='leader' && t.leader===p.id){
+        chron(personLabel(p)+', leader of '+t.name+', has died after '+(G.day-p.born)+' days.', 'people', t.id);
+        // succession prompt with two candidates
+        const mk = ()=>{ const traits=[
+            {tag:'the Stern', mil:.12, spi:0, mor:8},
+            {tag:'the Gentle', mil:-.12, spi:.05, mor:4},
+            {tag:'the Pious', mil:-.04, spi:.18, mor:5},
+            {tag:'the Bold', mil:.16, spi:-.04, mor:10},
+            {tag:'the Wise', mil:-.06, spi:.04, mor:6},
+            {tag:'the Cunning', mil:.06, spi:-.08, mor:7}];
+          const tr=pick(traits);
+          return {name:NG.person(), epithet:tr.tag, mil:tr.mil, spi:tr.spi, mor:tr.mor}; };
+        const a=mk(); let b=mk(); let guard=0; while(b.epithet===a.epithet&&guard++<5) b=mk();
+        queuePrompt({kind:'choose_heir', townId:t.id, args:{cands:[a,b]},
+          title:'An empty seat in '+t.name,
+          body:'Two voices rise to lead '+t.name+': '+a.name+' '+a.epithet+', and '+b.name+' '+b.epithet+'. The council asks the Voice to tip the scales.',
+          options:[a.name+' '+a.epithet, b.name+' '+b.epithet]});
+      } else if(p.fame>=3){
+        chron(personLabel(p)+' of '+t.name+' is laid to rest. Their name will outlive the stones.', 'people', t.id);
+      }
+    }
+  }
+  if(G.people.length>400) G.people = G.people.filter(p=>p.alive||p.fame>=3).slice(-380);
+}
+
+/* ---- milestones ---- */
+const MILESTONES = [
+  {id:'flame',   name:'First Flame',        desc:'Any town masters Fire.',                cond:()=>aliveTowns().some(t=>t.techs.fire)},
+  {id:'sow',     name:'Seeds of Tomorrow',  desc:'Any town reaches the Agricultural Age.',cond:()=>aliveTowns().some(t=>t.era>=1)},
+  {id:'word',    name:'The Written Word',   desc:'Writing is mastered.',                  cond:()=>aliveTowns().some(t=>t.techs.writing)},
+  {id:'bronze',  name:'Age of Bronze',      desc:'Any town reaches the Bronze Age.',      cond:()=>aliveTowns().some(t=>t.era>=2)},
+  {id:'sail',    name:'Set Sail',           desc:'Sailing is mastered.',                  cond:()=>aliveTowns().some(t=>t.techs.sailing)},
+  {id:'faith1',  name:'First Faith',        desc:'A religion is founded.',                cond:()=>G.religions.length>0},
+  {id:'sky',     name:'Eyes to the Sky',    desc:'Astronomy is mastered.',                cond:()=>aliveTowns().some(t=>t.techs.astronomy)},
+  {id:'pop200',  name:'Teeming World',      desc:'World population reaches 200.',         cond:()=>worldPop()>=200},
+  {id:'pop500',  name:'Half a Thousand',    desc:'World population reaches 500.',         cond:()=>worldPop()>=500},
+  {id:'year3',   name:'Three Years of Days',desc:'Survive to Year 4.',                    cond:()=>yearOf()>=4},
+  {id:'days1000',name:'The Long Watch',     desc:'Reach Day 1000.',                       cond:()=>G.day>=1000},
+  {id:'codex',   name:'Cartographer of Life',desc:'Eight species named.',                 cond:()=>G.species.filter(s=>s.name).length>=8},
+  {id:'pax',     name:'Pax Mundi',          desc:'After a war, 100 days of unbroken peace.',cond:()=>G.stats.wars>0 && G.wars.every(w=>w.over) && (G.day-(G.lastWarDay||0))>=100},
+  {id:'press',   name:'The Copied Word',    desc:'Printing is mastered.',                 cond:()=>aliveTowns().some(t=>t.techs.printing)},
+  {id:'engine',  name:'Fire Put to Work',   desc:'Steam engines are mastered.',           cond:()=>aliveTowns().some(t=>t.techs.steam)},
+  {id:'wings',   name:'Heavier than Air',   desc:'Flight is mastered.',                   cond:()=>aliveTowns().some(t=>t.techs.flight)},
+  {id:'orbit',   name:'A Made Star',        desc:'The first vessel reaches orbit.',       cond:()=>G.space && G.space.stage>=1},
+  {id:'footfall',name:'Footfall',           desc:'Someone walks on another world.',       cond:()=>G.space && G.space.stage>=2},
+  {id:'worldseed',name:'Worldseed',         desc:'Found a settlement on another world.',  cond:()=>!!G.offworld},
+  {id:'unite',   name:'Unification',        desc:'One banner holds 90% of all claimed land.',cond:()=>{
+      const ts=aliveTowns(); if(ts.length<1) return false;
+      const tot=ts.reduce((s,t)=>s+t.tiles.length,0); if(tot<80) return false;
+      return ts.some(t=>t.tiles.length/tot>=0.9) && G.stats.townsFallen+G.stats.colonies>0; }},
+];
+function worldPop(){ return aliveTowns().reduce((s,t)=>s+popOf(t),0); }
+function milestonesTick(){
+  for(const m of MILESTONES){
+    if(G.milestones[m.id]) continue;
+    let okv=false; try{ okv=m.cond(); }catch(e){}
+    if(okv){
+      G.milestones[m.id] = G.day;
+      chron('MILESTONE — '+m.name+': '+m.desc, 'mile');
+      allFaith(1.5);
+      if(HAS_DOM) UI.toast('Milestone — '+m.name);
+    }
+  }
+}
+
+/* ---- faith & game over ---- */
+function faithTick(){
+  for(const t of aliveTowns()){
+    // slow regression to the mean + outcome-driven drift
+    t.faith += (50 - t.faith)*0.0012;
+    if(t.starvingDays>5) t.faith -= 0.25;
+    if(t.plague) t.faith -= 0.12;
+    if(t.happiness>70) t.faith += 0.05;
+    t.faith = clamp(t.faith, 0, 100);
+  }
+  const ts = aliveTowns();
+  const tp = worldPop();
+  if(tp > (G.stats.peakPop||0)) G.stats.peakPop = tp;
+  G.faith = ts.length ? ts.reduce((s,t)=>s+t.faith*popOf(t),0)/Math.max(tp,1) : 0;
+}
+function checkEnd(){
+  if(G.over) return;
+  if(worldPop() < 1){
+    G.over = {kind:'extinct', day:G.day};
+    chron('No hearth burns anywhere on '+G.planetName+'. The world falls silent.', 'mile');
+  } else if(G.faith <= 1 && G.day > 30){
+    G.over = {kind:'forsaken', day:G.day};
+    chron('The last believer turns away. The Voice goes unheard on '+G.planetName+'.', 'mile');
+  }
+  if(G.over && HAS_DOM) UI.gameOver();
+}
+
+/* ============================================================
+   GAME SETUP & MAIN LOOP
+   ============================================================ */
+function newGame(seedStr){
+  seedStr = (seedStr||'').trim() || ('seed'+Math.floor(Date.now()%100000));
+  const h = xmur3(seedStr);
+  SEEDN = h();
+  WR = mulberry32(h());
+  R  = mulberry32(h());
+  const world = genWorld();
+  G = {
+    seedStr, day:0, season:0,
+    planetName:'the Unnamed World', starName:null, bodies:[],
+    tiles:world.tiles, fert:world.fert,
+    TO:new Int16Array(W*H).fill(-1),
+    towns:[], people:[], religions:[], species:[],
+    townSeq:0, personSeq:0, religionSeq:0, promptSeq:0,
+    rel:{}, wars:[], routes:[], plagues:[], ashHeal:[],
+    prompts:[], decisions:[], chron:[], milestones:{},
+    stats:{wars:0,warDeaths:0,famineDeaths:0,plagueDeaths:0,revolutions:0,colonies:0,townsFallen:0,peakPop:0},
+    faith:STARTING_FAITH, nextPromptDay:3,
+    lastWarDay:0, lastLine:'', terrainDirty:true, over:null,
+    space:{prog:0, stage:0}, offworld:null,
+    viewMode:'terrain',
+  };
+  G.species = genSpeciesPool();
+  const spot = findSettleSpot(G.tiles, G.fert, null, 0, 0);
+  const t0 = newTown(spot>=0 ? spot : (Math.floor(H/2)*W + Math.floor(W/2)));
+  chron('A handful of people raise the first roofs of '+t0.name+'.', 'town', t0.id);
+  chron('You are the Voice. They will ask; you may answer. Their faith is everything.', 'faith');
+  queuePrompt({kind:'name_planet', input:true, suggest:NG.planet(),
+    title:'A world, unnamed',
+    body:'The people of '+t0.name+' look out from their hilltop and wonder what to call the ground beneath them. The Voice may decide.',
+    options:['So be it']});
+  if(HAS_DOM){ render(); UI.updateHUD(); UI.maybeShowPrompt(); }
+}
+
+function nextDay(n){
+  n = n||1;
+  if(!G || G.over) return;
+  for(let step=0; step<n; step++){
+    if(G.over) break;
+    if(step>0 && G.prompts.length) break; // fast-forward pauses when the people ask
+    G.day++;
+    G.season = seasonIdx();
+    if(G.day % YEAR === 0) chron('Year '+yearOf()+' begins on '+G.planetName+'.', 'astro');
+    const towns = aliveTowns();
+    for(const t of towns){
+      productionTick(t);
+      demographicsTick(t);
+      moodTick(t);
+      researchTick(t);
+      territoryTick(t);
+    }
+    peopleTick();
+    relationsTick();
+    tradeTick();
+    beliefTick();
+    warsTick();
+    if(G.wars.some(w=>!w.over)) G.lastWarDay = G.day;
+    migrationTick();
+    disastersTick();
+    discoveryTick();
+    spaceTick();
+    evaluateDecisions();
+    // prune prompts aimed at fallen towns (world-level asks survive)
+    G.prompts = G.prompts.filter(p=>{
+      if(p.kind==='name_planet'||p.kind==='name_star'||p.kind==='name_body'||p.kind==='name_craft'||p.kind==='name_offworld') return true;
+      const t = p.townId!==undefined ? townById(p.townId) : null;
+      return t && !t.dead;
+    });
+    if(G.day >= G.nextPromptDay){
+      generatePolicyPrompt();
+      G.nextPromptDay = G.day + Math.max(2, ri(3,7) - Math.floor(aliveTowns().length/5));
+    }
+    autoDecideStale();
+    milestonesTick();
+    faithTick();
+    checkEnd();
+  }
+  if(HAS_DOM){ render(); UI.updateHUD(); UI.refreshPanel(); UI.maybeShowPrompt(); }
+}
+
+/* ============================================================
+   RENDERER
+   ============================================================ */
+let cv=null, ctx=null, terrCv=null, terrMode='';
+function initCanvas(){
+  if(!HAS_DOM) return;
+  cv = document.getElementById('map');
+  cv.width = W*SCALE; cv.height = H*SCALE;
+  ctx = cv.getContext('2d');
+  terrCv = document.createElement('canvas');
+  terrCv.width = W; terrCv.height = H;
+}
+function buildTerrain(){
+  const tctx = terrCv.getContext('2d');
+  const img = tctx.createImageData(W,H);
+  const mode = G.viewMode;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const i=y*W+x, t=G.tiles[i];
+    let r,g,b;
+    const br = 0.86 + ihash(x,y,SEEDN+7)*0.26;
+    if(mode==='fertility' && TINFO[t].land){
+      const f = clamp(G.fert[i],0,1.4)/1.4;
+      r=20+40*(1-f); g=42+170*f; b=26;
+    } else if(mode==='political' && TINFO[t].land){
+      const base = 64 + ihash(x,y,SEEDN+9)*24; r=g=b=base;
+    } else {
+      const c=TINFO[t].col; r=c[0]*br; g=c[1]*br; b=c[2]*br;
+    }
+    const o=i*4;
+    img.data[o]=r; img.data[o+1]=g; img.data[o+2]=b; img.data[o+3]=255;
+  }
+  tctx.putImageData(img,0,0);
+  terrMode = mode;
+}
+function hueOf(t){ return (t.id*47+13)%360; }
+function render(){
+  if(!HAS_DOM || !G || !ctx) return;
+  if(G.terrainDirty || terrMode!==G.viewMode){ buildTerrain(); G.terrainDirty=false; }
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.drawImage(terrCv, 0,0, W*SCALE, H*SCALE);
+  const S = SCALE;
+  for(const t of aliveTowns()){
+    ctx.fillStyle = 'hsla('+hueOf(t)+',72%,55%,'+(G.viewMode==='political'?0.8:0.4)+')';
+    for(const i of t.tiles){ ctx.fillRect((i%W)*S, ((i/W)|0)*S, S, S); }
+  }
+  ctx.lineWidth = 2;
+  for(const t of aliveTowns()){
+    ctx.strokeStyle = 'hsl('+hueOf(t)+',75%,62%)';
+    ctx.beginPath();
+    for(const i of t.tiles){
+      const x=i%W, y=(i/W)|0;
+      if(x===0   || G.TO[i-1]!==t.id){ ctx.moveTo(x*S, y*S);     ctx.lineTo(x*S, y*S+S); }
+      if(x===W-1 || G.TO[i+1]!==t.id){ ctx.moveTo(x*S+S, y*S);   ctx.lineTo(x*S+S, y*S+S); }
+      if(y===0   || G.TO[i-W]!==t.id){ ctx.moveTo(x*S, y*S);     ctx.lineTo(x*S+S, y*S); }
+      if(y===H-1 || G.TO[i+W]!==t.id){ ctx.moveTo(x*S, y*S+S);   ctx.lineTo(x*S+S, y*S+S); }
+    }
+    ctx.stroke();
+  }
+  for(const rt of G.routes){
+    const a=townById(rt.a), b=townById(rt.b);
+    if(!a||!b||a.dead||b.dead) continue;
+    ctx.strokeStyle = rt.sea ? 'rgba(150,195,255,.55)' : 'rgba(255,255,255,.35)';
+    ctx.setLineDash([4,5]); ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(a.cap[0]*S+S/2, a.cap[1]*S+S/2);
+    ctx.lineTo(b.cap[0]*S+S/2, b.cap[1]*S+S/2);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  for(const t of aliveTowns()){
+    const x=t.cap[0]*S+S/2, y=t.cap[1]*S+S/2;
+    ctx.fillStyle = 'hsl('+hueOf(t)+',80%,60%)';
+    ctx.strokeStyle = warOf(t) ? '#ff4747' : '#fff';
+    ctx.lineWidth = 2;
+    ctx.fillRect(x-4,y-4,8,8);
+    ctx.strokeRect(x-4,y-4,8,8);
+  }
+  const sel = (typeof UI!=='undefined' && UI.selectedTown!=null) ? townById(UI.selectedTown) : null;
+  if(sel && !sel.dead){
+    ctx.strokeStyle='#fff'; ctx.setLineDash([3,3]); ctx.lineWidth=1;
+    ctx.strokeRect(sel.cap[0]*S-5, sel.cap[1]*S-5, S+10, S+10);
+    ctx.setLineDash([]);
+  }
+  document.getElementById('ticker').textContent = G.lastLine ? ('Day '+G.day+' — '+G.lastLine) : '';
+  document.getElementById('viewTag').textContent = G.viewMode;
+}
+
+/* ============================================================
+   UI LAYER
+   ============================================================ */
+const $ = id => HAS_DOM ? document.getElementById(id) : null;
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+const UI = {
+  selectedTown:null, panelKind:null, chronFilter:'all',
+  autoTimer:null, autoSpeed:700, current:null, memSaves:{},
+
+  init(){
+    $('nextBtn').addEventListener('click', ()=>this.step(1));
+    $('ffBtn').addEventListener('click', ()=>this.step(10));
+    $('autoBtn').addEventListener('click', ()=>this.toggleAuto());
+    $('promptBadge').addEventListener('click', ()=>this.maybeShowPrompt());
+    $('planetBtn').addEventListener('click', ()=>this.togglePanel('planet'));
+    $('townsBtn').addEventListener('click', ()=>this.togglePanel('towns'));
+    $('techBtn').addEventListener('click', ()=>this.togglePanel('tech'));
+    $('peopleBtn').addEventListener('click', ()=>this.togglePanel('people'));
+    $('mileBtn').addEventListener('click', ()=>this.togglePanel('goals'));
+    $('chronBtn').addEventListener('click', ()=>this.togglePanel('chron'));
+    $('menuBtn').addEventListener('click', ()=>this.togglePanel('menu'));
+    $('panelClose').addEventListener('click', ()=>this.closePanel());
+    $('promptShuffle').addEventListener('click', ()=>{ if(this.current) $('promptInput').value = this.freshSuggest(this.current); });
+    $('seedShuffle').addEventListener('click', ()=>{ $('seedInput').value = this.randSeed(); });
+    $('beginBtn').addEventListener('click', ()=>this.begin());
+    $('againBtn').addEventListener('click', ()=>{ $('overOverlay').classList.remove('open'); $('seedInput').value=this.randSeed(); $('titleOverlay').classList.add('open'); });
+    $('map').addEventListener('click', e=>this.pickTown(e));
+    $('panelBody').addEventListener('click', e=>{
+      const tw = e.target.closest('[data-town]');
+      if(tw){ this.selectedTown = +tw.dataset.town; this.openPanel('town'); render(); return; }
+      const a = e.target.closest('[data-act]');
+      if(a) this.action(a.dataset.act, a.dataset.arg);
+    });
+    $('promptInput').addEventListener('keydown', e=>{ if(e.key==='Enter') this.resolveCurrent(0); });
+    $('seedInput').addEventListener('keydown', e=>{ if(e.key==='Enter') this.begin(); });
+    $('seedInput').value = this.randSeed();
+  },
+  randSeed(){
+    const a='abcdefghijkmnopqrstuvwxyz';
+    let s=''; for(let i=0;i<4;i++) s+=a[Math.floor(Math.random()*a.length)];
+    return s + Math.floor(Math.random()*900+100);
+  },
+  begin(){
+    const s = $('seedInput').value;
+    $('titleOverlay').classList.remove('open');
+    $('overOverlay').classList.remove('open');
+    this.selectedTown=null; this.closePanel(); this.stopAuto(); this.current=null;
+    newGame(s);
+  },
+  step(n){
+    if(!G || G.over) return;
+    if($('shade').classList.contains('open')) return;
+    nextDay(n);
+  },
+  toggleAuto(){
+    if(this.autoTimer){ this.stopAuto(); return; }
+    this.autoTimer = setInterval(()=>{
+      if(!G || G.over){ this.stopAuto(); return; }
+      if($('shade').classList.contains('open')) return;
+      nextDay(1);
+    }, this.autoSpeed);
+    $('autoBtn').textContent='⏸ AUTO';
+  },
+  stopAuto(){
+    if(this.autoTimer){ clearInterval(this.autoTimer); this.autoTimer=null; }
+    if(HAS_DOM && $('autoBtn')) $('autoBtn').textContent='▶ AUTO';
+  },
+  updateHUD(){
+    if(!G) return;
+    $('planetBtn').textContent = G.planetName.toUpperCase();
+    $('dateLine').textContent = 'Day '+G.day+' · '+SEASONS[G.season]+' · Year '+yearOf();
+    $('popLine').textContent = aliveTowns().length+' towns · pop '+Math.round(worldPop());
+    const bar = $('faithBar').firstElementChild;
+    bar.style.width = clamp(G.faith,0,100)+'%';
+    bar.style.background = G.faith<25 ? '#ff5e5e' : '#ffd75e';
+    $('faithNum').textContent = Math.round(G.faith);
+    const n = G.prompts.length, open = $('shade').classList.contains('open');
+    const b = $('promptBadge');
+    if(n>0 && !open){ b.textContent = '! '+n+' AWAITING'; b.classList.add('show'); }
+    else b.classList.remove('show');
+  },
+
+  /* ---- prompt modal ---- */
+  maybeShowPrompt(){
+    if(!G || G.over) return;
+    if($('shade').classList.contains('open')) return;
+    if(!G.prompts.length){ this.updateHUD(); return; }
+    this.showPrompt(G.prompts[0]);
+  },
+  showPrompt(p){
+    this.current = p;
+    const t = p.townId!==undefined ? townById(p.townId) : null;
+    $('promptFrom').textContent = t ? ('From '+t.name) : 'From the world';
+    $('promptTitle').textContent = p.title || '…';
+    $('promptBody').textContent = p.body || '';
+    const ir = $('promptInputRow');
+    if(p.input){ ir.classList.add('show'); $('promptInput').value = p.value || p.suggest || this.freshSuggest(p); }
+    else { ir.classList.remove('show'); }
+    const btns = $('promptBtns'); btns.innerHTML='';
+    (p.options||['So be it']).forEach((label,i)=>{
+      const b=document.createElement('button');
+      b.textContent = label;
+      b.addEventListener('click', ()=>this.resolveCurrent(i));
+      btns.appendChild(b);
+    });
+    const later=document.createElement('button');
+    later.textContent='Later'; later.className='small';
+    later.addEventListener('click', ()=>{
+      if(this.current && this.current.input) this.current.value = $('promptInput').value;
+      this.current=null;
+      $('shade').classList.remove('open');
+      this.updateHUD();
+    });
+    btns.appendChild(later);
+    $('shade').classList.add('open');
+    this.updateHUD();
+  },
+  freshSuggest(p){
+    if(p.kind==='name_species' && G.species[p.args.spIdx]) return NG.species(G.species[p.args.spIdx].kind);
+    if(p.kind==='name_star'||p.kind==='name_craft') return NG.star();
+    if(p.kind==='name_offworld') return NG.town();
+    if(p.kind==='name_town') return NG.town();
+    return NG.planet();
+  },
+  resolveCurrent(i){
+    const p=this.current; if(!p) return;
+    const k=G.prompts.indexOf(p); if(k>=0) G.prompts.splice(k,1);
+    this.current=null;
+    $('shade').classList.remove('open');
+    resolvePrompt(p, i, $('promptInput').value);
+    this.updateHUD(); render(); this.refreshPanel();
+    this.maybeShowPrompt();
+  },
+
+  /* ---- side panel ---- */
+  togglePanel(kind){
+    if(this.panelKind===kind && $('panel').classList.contains('open')) this.closePanel();
+    else this.openPanel(kind);
+  },
+  openPanel(kind){ this.panelKind=kind; $('panel').classList.add('open'); this.refreshPanel(); },
+  closePanel(){ if(HAS_DOM&&$('panel')) $('panel').classList.remove('open'); this.panelKind=null; },
+  refreshPanel(){
+    if(!G || !this.panelKind || !$('panel').classList.contains('open')) return;
+    const k=this.panelKind;
+    let title='', html='';
+    if(k==='town'){
+      const t = this.selectedTown!=null ? townById(this.selectedTown) : null;
+      if(!t){ this.panelKind='towns'; return this.refreshPanel(); }
+      title=t.name; html=this.townHTML(t);
+    }
+    else if(k==='towns'){ title='Towns'; html=this.townsHTML(); }
+    else if(k==='tech'){ title='Knowledge'; html=this.techHTML(); }
+    else if(k==='people'){ title='People'; html=this.peopleHTML(); }
+    else if(k==='planet'){ title='Planet'; html=this.planetHTML(); }
+    else if(k==='goals'){ title='Milestones'; html=this.goalsHTML(); }
+    else if(k==='chron'){ title='Chronicle'; html=this.chronHTML(); }
+    else if(k==='menu'){ title='Menu'; html=this.menuHTML(); }
+    $('panelTitle').textContent=title;
+    $('panelBody').innerHTML=html;
+  },
+  row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span>'+v+'</span></div>'; },
+  barRow(k,val,col){
+    return '<div class="row"><span class="k">'+k+'</span><span>'+Math.round(val)
+      +'<span class="miniBar"><i style="width:'+clamp(val,0,100)+'%;background:'+(col||'#fff')+'"></i></span></span></div>';
+  },
+  cultureTags(t){
+    const c=t.culture, tags=[];
+    if(c.mil>.25)tags.push('martial'); if(c.mil<-.25)tags.push('peaceable');
+    if(c.spi>.3)tags.push('devout');   if(c.spi<-.3)tags.push('worldly');
+    if(c.ope>.3)tags.push('open');     if(c.ope<-.3)tags.push('insular');
+    if(c.tra>.3)tags.push('tradition-bound'); if(c.tra<-.3)tags.push('restless');
+    return tags.length ? tags.map(x=>'<span class="tag">'+x+'</span>').join('') : '<span class="tag">unremarkable</span>';
+  },
+  townHTML(t){
+    const dot='<span class="dot" style="background:hsl('+hueOf(t)+',72%,55%)"></span>';
+    let h='<h3>'+dot+esc(t.name)+(t.dead?' — fallen':'')+'</h3>';
+    if(t.dead) return h + this.row('Fell on day', t.diedDay);
+    const ldr=personById(t.leader);
+    h+=this.row('Population', Math.round(popOf(t))+' <span class="k">('+Math.round(t.pop.c)+' young · '+Math.round(t.pop.w)+' workers · '+Math.round(t.pop.e)+' elders)</span>');
+    h+=this.row('Era', esc(ERAS[t.era]));
+    if(ldr&&ldr.alive) h+=this.row('Leader', esc(personLabel(ldr)));
+    h+=this.barRow('Happiness', t.happiness);
+    h+=this.barRow('Faith in you', t.faith, '#ffd75e');
+    h+=this.barRow('Morale', t.morale);
+    h+='<h3>Stores</h3>';
+    h+=this.row('Food', Math.round(t.res.food));
+    h+=this.row('Wood / Stone / Metal', Math.round(t.res.wood)+' / '+Math.round(t.res.stone)+' / '+Math.round(t.res.metal));
+    h+=this.row('Knowledge', Math.round(t.res.know)+(t.research?(' <span class="k">→ '+esc(TECHS[t.research].name)+'</span>'):''));
+    h+='<h3>Society</h3>';
+    h+='<div style="margin:4px 0">'+this.cultureTags(t)+'</div>';
+    h+=this.row('Religion', t.religion!==null ? esc(religionById(t.religion).name) : '—');
+    h+=this.row('Trade routes', routeCount(t));
+    const w=warOf(t);
+    if(w){
+      const o=townById(w.a===t.id?w.b:w.a);
+      h+=this.row('<span class="c-war">At war</span>', 'vs '+esc(o?o.name:'?')+' · exhaustion '+Math.round(w.a===t.id?w.exA:w.exB));
+    }
+    const tags=[];
+    if(t.starvingDays>0)tags.push('<span class="tag c-disaster">starving</span>');
+    if(t.droughtDays>0)tags.push('<span class="tag c-disaster">drought</span>');
+    if(t.plague)tags.push('<span class="tag c-disaster">'+esc(t.plague.name)+'</span>');
+    if(t.flags.army)tags.push('<span class="tag">warband</span>');
+    if(t.flags.irrigation)tags.push('<span class="tag">irrigation</span>');
+    if(t.flags.temple)tags.push('<span class="tag">temple</span>');
+    if(t.flags.rationUntil>G.day)tags.push('<span class="tag">rationing</span>');
+    if(G.day<t.protectedUntil)tags.push('<span class="tag">young colony</span>');
+    if(tags.length) h+='<div style="margin:4px 0">'+tags.join('')+'</div>';
+    const rels=aliveTowns().filter(o=>o.id!==t.id)
+      .map(o=>({o,r:getRel(t.id,o.id)}))
+      .sort((a,b)=>Math.abs(b.r)-Math.abs(a.r)).slice(0,6);
+    if(rels.length){
+      h+='<h3>Relations</h3>';
+      for(const {o,r} of rels){
+        const col = r>20?'#7dff8a':(r<-20?'#ff8a8a':'#aaa');
+        h+='<div class="row"><span data-town="'+o.id+'" style="cursor:pointer;text-decoration:underline dotted">'+esc(o.name)+'</span><span style="color:'+col+'">'+(r>0?'+':'')+Math.round(r)+'</span></div>';
+      }
+    }
+    if(t.memory.length){
+      h+='<h3>They remember</h3>';
+      for(const m of t.memory) h+='<div class="chronLine">'+esc(m)+'</div>';
+    }
+    return h;
+  },
+  townsHTML(){
+    const ts=aliveTowns().slice().sort((a,b)=>popOf(b)-popOf(a));
+    if(!ts.length) return '<div class="k">No towns remain.</div>';
+    let h='';
+    for(const t of ts){
+      const tags=[];
+      if(warOf(t))tags.push('<span class="tag c-war">war</span>');
+      if(t.plague)tags.push('<span class="tag c-disaster">plague</span>');
+      if(t.starvingDays>0)tags.push('<span class="tag c-disaster">hunger</span>');
+      h+='<div class="listItem" data-town="'+t.id+'">'
+        +'<span class="dot" style="background:hsl('+hueOf(t)+',72%,55%)"></span><b>'+esc(t.name)+'</b> '
+        +'<span class="sub">pop '+Math.round(popOf(t))+' · '+esc(ERAS[t.era])+' · faith '+Math.round(t.faith)+'</span> '
+        +tags.join('')+'</div>';
+    }
+    const dead=G.towns.filter(t=>t.dead);
+    if(dead.length){
+      h+='<h3>Fallen</h3>';
+      for(const t of dead) h+=this.row(esc(t.name), 'day '+t.diedDay);
+    }
+    return h;
+  },
+  techHTML(){
+    const ts=aliveTowns(); let h='';
+    for(let e=0;e<ERAS.length;e++){
+      h+='<h3>'+ERAS[e]+'</h3>';
+      for(const id of TECH_IDS){
+        const tc=TECHS[id]; if(tc.era!==e) continue;
+        const owners=ts.filter(t=>t.techs[id]).length;
+        h+='<div class="row"><span'+(owners?'':' class="k"')+'>'+tc.name+'</span><span class="k">'+(owners? owners+'/'+ts.length : '—')+'</span></div>';
+        h+='<div class="sub" style="color:#777;margin:-2px 0 5px">'+tc.desc+'</div>';
+      }
+    }
+    return h;
+  },
+  peopleHTML(){
+    const alive=G.people.filter(p=>p.alive&&(p.role==='leader'||p.fame>=1));
+    let h='<h3>Living</h3>';
+    if(!alive.length) h+='<div class="k">No one of note.</div>';
+    for(const p of alive){
+      const t=townById(p.townId);
+      h+='<div class="row"><span>'+esc(personLabel(p))+' <span class="k">'+p.role+'</span></span><span class="k">'+(t?esc(t.name):'?')+' · age '+(G.day-p.born)+'</span></div>';
+    }
+    const legends=G.people.filter(p=>!p.alive&&p.fame>=3);
+    if(legends.length){
+      h+='<h3>Legends</h3>';
+      for(const p of legends) h+='<div class="row"><span>'+esc(personLabel(p))+'</span><span class="k">'+esc(p.deeds[0]||p.role)+'</span></div>';
+    }
+    return h;
+  },
+  planetHTML(){
+    let land=0; for(let i=0;i<W*H;i++) if(TINFO[G.tiles[i]].land) land++;
+    let h='';
+    h+=this.row('World', esc(G.planetName));
+    h+=this.row('Star', G.starName ? esc(G.starName) : '<span class="k">unnamed — awaits astronomy</span>');
+    h+=this.row('Date', 'Day '+G.day+' · Year '+yearOf());
+    h+=this.row('Seed', '<span style="user-select:text">'+esc(G.seedStr)+'</span>');
+    h+=this.row('Land', Math.round(land/(W*H)*100)+'%');
+    h+=this.row('Towns risen / fallen', G.townSeq+' / '+G.stats.townsFallen);
+    if(G.space && (G.space.stage>0 || aliveTowns().some(t=>t.techs.spaceflight))){
+      const stages=['preparing a launch','in orbit','footfall achieved','a second world settled'];
+      h+=this.row('Space program', stages[G.space.stage]||'—');
+    }
+    if(G.offworld) h+=this.row('Offworld colony', esc(G.offworld.name)+' <span class="k">on '+esc(G.offworld.on)+' · day '+G.offworld.day+'</span>');
+    if(G.bodies.length){
+      h+='<h3>Charted Sky</h3>';
+      for(const b of G.bodies) h+=this.row(esc(b.name), b.type+' · day '+b.day);
+    }
+    const named=G.species.filter(s=>s.name);
+    h+='<h3>Codex of Life</h3>';
+    if(!named.length) h+='<div class="k">Nothing recorded yet.</div>';
+    for(const s of named) h+=this.row(esc(s.name), s.kind+' · by '+esc(s.namedBy||'?'));
+    const left=G.species.length-named.length;
+    if(left>0) h+='<div class="sub" style="color:#777;margin-top:6px">'+left+' species remain undiscovered…</div>';
+    return h;
+  },
+  goalsHTML(){
+    let h='';
+    for(const m of MILESTONES){
+      const got=G.milestones[m.id];
+      if(got) h+='<div class="row"><span class="c-mile">✓ '+m.name+'</span><span class="k">day '+got+'</span></div>';
+      else h+='<div class="row"><span class="k">◻ '+m.name+'</span></div><div class="sub" style="color:#666;margin:-2px 0 5px">'+m.desc+'</div>';
+    }
+    return h;
+  },
+  chronHTML(){
+    const types=['all','town','decision','faith','war','tech','trade','religion','people','disaster','species','astro','mile'];
+    let h='<div class="filterRow">';
+    for(const ty of types) h+='<button data-act="chronfilter" data-arg="'+ty+'" class="'+(this.chronFilter===ty?'on':'')+'">'+ty+'</button>';
+    h+='</div>';
+    let shown=0;
+    for(let i=G.chron.length-1;i>=0&&shown<260;i--){
+      const c=G.chron[i];
+      if(this.chronFilter!=='all'&&c.t!==this.chronFilter) continue;
+      h+='<div class="chronLine c-'+c.t+'"><span class="d">d'+c.d+'</span>'+esc(c.m)+'</div>';
+      shown++;
+    }
+    if(!shown) h+='<div class="k">Nothing yet.</div>';
+    return h;
+  },
+  menuHTML(){
+    let h='<h3>Map view</h3><div class="filterRow">';
+    for(const v of ['terrain','political','fertility'])
+      h+='<button data-act="view" data-arg="'+v+'" class="'+(G.viewMode===v?'on':'')+'">'+v+'</button>';
+    h+='</div><h3>Auto-play speed</h3><div class="filterRow">';
+    const speeds=[['slow',1100],['normal',700],['fast',350]];
+    for(const sp of speeds)
+      h+='<button data-act="speed" data-arg="'+sp[1]+'" class="'+(this.autoSpeed===sp[1]?'on':'')+'">'+sp[0]+'</button>';
+    h+='</div><h3>Saves</h3>';
+    for(let s=1;s<=3;s++){
+      h+='<div class="row"><span class="k">Slot '+s+'</span><span><button class="small" data-act="save" data-arg="'+s+'">Save</button> <button class="small" data-act="load" data-arg="'+s+'">Load</button></span></div>';
+    }
+    h+='<div class="sub" style="color:#777;margin:6px 0">Saves persist where storage is available; otherwise they last this session.</div>';
+    h+='<h3>World</h3>';
+    h+=this.row('Seed', '<span style="user-select:text">'+esc(G.seedStr)+'</span>');
+    h+='<div style="margin-top:8px"><button data-act="newworld">New World</button></div>';
+    h+='<h3>How to play</h3><div class="sub" style="color:#888;line-height:1.7">You are the Voice. Towns live on their own — they farm, learn, trade, and quarrel. Now and then they ask for your counsel. Answer well and their faith grows; leave them waiting and they will decide alone, trusting you a little less each time. If faith reaches zero, the world stops listening. The same seed always grows the same planet. Click any town on the map for details.</div>';
+    return h;
+  },
+  action(act,arg){
+    if(act==='chronfilter'){ this.chronFilter=arg; this.refreshPanel(); }
+    else if(act==='view'){ G.viewMode=arg; G.terrainDirty=true; render(); this.refreshPanel(); }
+    else if(act==='speed'){ this.autoSpeed=+arg; if(this.autoTimer){ this.stopAuto(); this.toggleAuto(); } this.refreshPanel(); }
+    else if(act==='save'){ this.saveSlot(arg); }
+    else if(act==='load'){ this.loadSlot(arg); }
+    else if(act==='newworld'){ this.stopAuto(); this.closePanel(); $('seedInput').value=this.randSeed(); $('titleOverlay').classList.add('open'); }
+  },
+
+  /* ---- saves ---- */
+  snapshot(){
+    const o={};
+    for(const k in G){
+      if(k==='tiles') o.tiles=Array.from(G.tiles);
+      else if(k==='fert') o.fert=Array.from(G.fert).map(v=>Math.round(v*1000)/1000);
+      else if(k==='TO') o.TO=Array.from(G.TO);
+      else if(k==='towns') o.towns=G.towns.map(t=>{
+        const c=Object.assign({},t);
+        c.terr=null; c.terrDirty=true;
+        c.plague = t.plague ? G.plagues.indexOf(t.plague) : -1;
+        return c;
+      });
+      else o[k]=G[k];
+    }
+    return JSON.stringify(o);
+  },
+  restoreSnap(json){
+    const o=JSON.parse(json);
+    o.tiles=Uint8Array.from(o.tiles);
+    o.fert=Float32Array.from(o.fert);
+    o.TO=Int16Array.from(o.TO);
+    for(const t of o.towns){
+      t.plague = (typeof t.plague==='number' && t.plague>=0 && o.plagues[t.plague]) ? o.plagues[t.plague] : null;
+    }
+    G=o; G.terrainDirty=true;
+    const h0=xmur3(G.seedStr); SEEDN=h0();
+    R=mulberry32(xmur3(G.seedStr+'@'+G.day)());
+  },
+  async saveSlot(n){
+    if(!G) return;
+    const data=this.snapshot();
+    try{
+      localStorage.setItem('worldseed_slot'+n, data);
+      this.toast('Saved — slot '+n);
+    }catch(e){ this.memSaves[n]=data; this.toast('Saved for this session — slot '+n); }
+  },
+  async loadSlot(n){
+    let data=null;
+    try{ data = localStorage.getItem('worldseed_slot'+n); }catch(e){ data=null; }
+    if(!data) data=this.memSaves[n];
+    if(!data){ this.toast('Slot '+n+' is empty'); return; }
+    try{
+      this.restoreSnap(data);
+      this.stopAuto(); this.current=null;
+      $('shade').classList.remove('open');
+      $('titleOverlay').classList.remove('open');
+      $('overOverlay').classList.remove('open');
+      render(); this.updateHUD(); this.refreshPanel(); this.maybeShowPrompt();
+      this.toast('Loaded — slot '+n);
+      if(G.over) this.gameOver();
+    }catch(e){ this.toast('That save could not be read'); }
+  },
+  toast(msg){
+    if(!HAS_DOM) return;
+    const d=document.createElement('div'); d.className='toast'; d.textContent=msg;
+    $('toasts').appendChild(d);
+    setTimeout(()=>d.remove(), 4200);
+  },
+  gameOver(){
+    this.stopAuto();
+    if(this.current){ this.current=null; }
+    $('shade').classList.remove('open');
+    const o=G.over; if(!o) return;
+    $('overTitle').textContent = o.kind==='forsaken' ? 'THE VOICE FADES' : 'A SILENT WORLD';
+    const s=G.stats;
+    const lines=[
+      o.kind==='forsaken' ? 'No one on '+esc(G.planetName)+' believes in you anymore.' : 'Every hearth on '+esc(G.planetName)+' has gone cold.',
+      '',
+      'You endured <b>'+o.day+' days</b> (Year '+(Math.floor(o.day/YEAR)+1)+').',
+      'Towns risen '+G.townSeq+' · fallen '+s.townsFallen+' · colonies '+s.colonies,
+      'Wars '+s.wars+' · lost to war '+Math.round(s.warDeaths),
+      'Famine took '+Math.round(s.famineDeaths)+' · plague took '+Math.round(s.plagueDeaths),
+      'Revolutions '+s.revolutions+' · peak population '+Math.round(s.peakPop||0),
+      'Milestones '+Object.keys(G.milestones).length+' of '+MILESTONES.length,
+      G.offworld ? ('But '+esc(G.offworld.name)+' endures on '+esc(G.offworld.on)+'.') : '',
+      '',
+      'Seed: <span style="user-select:text">'+esc(G.seedStr)+'</span>',
+    ];
+    $('overStats').innerHTML = lines.join('<br>');
+    $('overOverlay').classList.add('open');
+  },
+  pickTown(e){
+    if(!G) return;
+    const r=cv.getBoundingClientRect();
+    const tx=Math.floor((e.clientX-r.left)/r.width*W);
+    const ty=Math.floor((e.clientY-r.top)/r.height*H);
+    if(tx<0||ty<0||tx>=W||ty>=H) return;
+    let id=G.TO[ty*W+tx];
+    if(id!==-1){ const t=townById(id); if(!t||t.dead) id=-1; }
+    if(id===-1){
+      let bd=6;
+      for(const t of aliveTowns()){
+        const d=Math.hypot(t.cap[0]-tx, t.cap[1]-ty);
+        if(d<bd){ bd=d; id=t.id; }
+      }
+    }
+    if(id!==-1){ this.selectedTown=id; this.openPanel('town'); render(); }
+  },
+};
+
+/* ---- boot ---- */
+if(HAS_DOM){
+  initCanvas();
+  UI.init();
+} else {
+  // headless smoke test (node)
+  const seeds=['alpha','omega','gamma'];
+  const horizon = {alpha:420, omega:420, gamma:2200};
+  for(const s of seeds){
+    try{
+      newGame(s);
+      while(G.day<horizon[s] && !G.over){
+        nextDay(1);
+        while(G.prompts.length){
+          const p = G.prompts.shift();
+          resolvePrompt(p, p.options ? Math.floor(Math.random()*p.options.length) : 0, null);
+        }
+      }
+      const ts=aliveTowns();
+      const era = ts.length ? Math.max.apply(null, ts.map(t=>t.era)) : 0;
+      const bad = Number.isNaN(G.faith) || ts.some(t=>Number.isNaN(popOf(t)));
+      console.log('[test] seed='+s+' day='+G.day+' towns='+ts.length+' pop='+Math.round(worldPop())
+        +' era='+era+' faith='+G.faith.toFixed(1)+' chron='+G.chron.length
+        +' wars='+G.stats.wars+' relig='+G.religions.length
+        +' space='+(G.space?G.space.stage:0)+(G.offworld?(' colony='+G.offworld.name):'')
+        +(G.over?(' OVER:'+G.over.kind):'')+(bad?' !!NaN':''));
+    }catch(err){
+      console.log('[test] seed='+s+' CRASH day '+(G?G.day:'?')+': '+err.stack.split('\n').slice(0,3).join(' | '));
+    }
+  }
+}
+
+</script>
+</body>
+</html>
