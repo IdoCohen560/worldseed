@@ -157,6 +157,8 @@ h3.sec{color:var(--gold);text-decoration:underline;font-weight:normal;font-size:
       <div class="mitem" data-pop="people"><span class="k">[P]</span> People</div>
       <div class="mitem" data-pop="planet"><span class="k">[O]</span> Planet</div>
       <div class="mitem" data-pop="goals"><span class="k">[G]</span> Goals</div>
+      <div class="mitem" data-pop="projects"><span class="k">[J]</span> Projects</div>
+      <div class="mitem" data-pop="stats"><span class="k">[S]</span> Stats</div>
     </div>
     <div id="execSpacer"></div>
     <div class="menu">
@@ -1036,6 +1038,31 @@ function resolvePrompt(p, choiceIdx, inputValue){
       chron('The great land is named: '+nm+'.', 'astro', p.townId);
       allFaith(1);
       break; }
+    case 'project_ask':
+      if(choiceIdx===0){
+        t.project = {type:p.args.type, days:PROJECTS[p.args.type].days};
+        chron('Ground is broken in '+t.name+' for a '+PROJECTS[p.args.type].n.toLowerCase()+'.', 'town', t.id);
+      } else { t.hapBuf-=1; }
+      break;
+    case 'tech_ask':
+      if(choiceIdx===0){
+        chron('The Voice gives its blessing: '+t.name+' may pursue '+TECHS[p.args.tech].name+'.', 'tech', t.id);
+      } else {
+        if(!t.flags.blockedTech) t.flags.blockedTech={};
+        t.flags.blockedTech[p.args.tech] = G.day + 150;
+        t.research = null;
+        t.culture.tra = clamp(t.culture.tra+.06,-1,1);
+        chron('The Voice forbids it. The scholars of '+t.name+' set '+TECHS[p.args.tech].name+' aside, for now.', 'tech', t.id);
+      }
+      break;
+    case 'firebreak':
+      if(choiceIdx===0){ t.res.wood=Math.max(0,t.res.wood-25); if(t.flags.fire) t.flags.fire.days=Math.max(1,Math.ceil(t.flags.fire.days/2)); chron('Axes ring through the night — '+t.name+' cuts a firebreak.', 'disaster', t.id); }
+      break;
+    case 'name_meteor': {
+      const nm=(inputValue||'').trim().slice(0,18)||NG.word(2,3);
+      chron('The fallen star is named '+nm+'. Pilgrims already walk toward the crater.', 'astro', p.townId);
+      allFaith(1.5);
+      break; }
     case 'motion_color':
       if(choiceIdx===0 && t){ t.hue = ri(0,359); G.terrainDirty=true; chron(t.name+' flies a new color from every rooftop.', 'town', t.id); t.hapBuf+=3; }
       else if(t) chron('The motion fails; '+t.name+' keeps its old banner.', 'town', t.id);
@@ -1092,6 +1119,7 @@ function autoDecideStale(){
       const t = p.townId!==undefined ? townById(p.townId) : null;
       const choice = p.options ? ri(0, p.options.length-1) : 0;
       resolvePrompt(p, choice, null);
+      G.stats.promptsMissed++; G.stats.streak = 0;
       if(t && !t.dead){
         t.faith = clamp(t.faith - 3.5, 0, 100);
         chron(t.name+' waited for the Voice, heard nothing, and chose alone.', 'faith', t.id);
@@ -1180,6 +1208,8 @@ function productionTick(t){
   let cropSeason = SEASON_CROP[s];
   if(s===3 && t.techs.shelter) cropSeason += .18;
   if(t.droughtDays>0) cropSeason *= .45;
+  if(t.flags.locustUntil > G.day) cropSeason *= .35;
+  if(G.hardWinterUntil > G.day && s===3) cropSeason *= .55;
   if(t.flags.fallowUntil > G.day) cropSeason *= .4;
   if(t.flags.plowHard > G.day) cropSeason *= 1.25;
   if(t.fertBoostUntil > G.day) cropSeason *= 1.15;
@@ -1228,11 +1258,11 @@ function productionTick(t){
   t.jobs = {farmers: Math.round(farmers), laborers: Math.round(others*0.6), scholars: Math.round(others*0.4)};
   // wood / stone / metal / knowledge
   if(c.forest>0) t.res.wood += others*0.16*Math.min(1, c.forest/14);
-  if(t.techs.masonry && (c.hills+c.mount)>0) t.res.stone += others*0.10*Math.min(1,(c.hills+c.mount)/10);
-  if(t.techs.bronze && (c.mount+c.hills*0.5)>0) t.res.metal += others*0.07*Math.min(1,(c.mount+c.hills*0.5)/8);
+  if(t.techs.masonry && (c.hills+c.mount)>0) t.res.stone += others*0.10*Math.min(1,(c.hills+c.mount)/10)*(t.flags.mine?1.5:1);
+  if(t.techs.bronze && (c.mount+c.hills*0.5)>0) t.res.metal += others*0.07*Math.min(1,(c.mount+c.hills*0.5)/8)*((t.flags.mine?1.4:1)*(t.flags.forge?1.3:1)*(t.flags.factory?1.6:1));
   let scholars = others*0.4;
-  let kmult = 1 + (t.techs.writing?0.35:0) + (t.techs.mathematics?0.25:0) + (t.techs.currency?0.1:0) + (t.techs.printing?0.45:0) + (t.techs.optics?0.15:0) + (t.techs.electricity?0.3:0) + (t.techs.computing?0.9:0);
-  t.res.know += (0.15 + scholars*0.3)*kmult*(0.5 + t.happiness/160);
+  let kmult = 1 + (t.flags.market?0.15:0) + (t.techs.writing?0.35:0) + (t.techs.mathematics?0.25:0) + (t.techs.currency?0.1:0) + (t.techs.printing?0.45:0) + (t.techs.optics?0.15:0) + (t.techs.electricity?0.3:0) + (t.techs.computing?0.9:0);
+  t.res.know += (0.15 + (t.flags.knowB||0) + scholars*0.3)*kmult*(0.5 + t.happiness/160);
 
   // temple construction
   if(t.flags.templeBuild !== undefined && t.flags.templeBuild>0){
@@ -1249,7 +1279,7 @@ function productionTick(t){
   // spoilage & storage cap
   const spoil = t.techs.pottery ? 0.002 : 0.005;
   t.res.food *= (1-spoil);
-  const cap = 60 + popOf(t)*(t.techs.pottery?22:12);
+  const cap = (60 + popOf(t)*(t.techs.pottery?22:12)) * (t.flags.granary?1.6:1);
   t.res.food = clamp(t.res.food, 0, cap);
   t.res.wood = clamp(t.res.wood, 0, 400); t.res.stone = clamp(t.res.stone, 0, 400); t.res.metal = clamp(t.res.metal, 0, 300);
 }
@@ -1284,12 +1314,13 @@ function demographicsTick(t){
   // births (need at least 2 residents)
   if(popOf(t) >= 2){
     t.birthAcc += t.pop.w * 0.014 * clamp(foodSec,0.1,1.25) * (0.45 + t.happiness/130);
-    if(t.birthAcc >= 1){ const b=Math.floor(t.birthAcc); t.pop.c += b; t.birthAcc -= b; }
+    if(t.birthAcc >= 1){ const b=Math.floor(t.birthAcc); t.pop.c += b; t.birthAcc -= b; G.stats.births += b; }
   }
   // aging & natural death
   const matur = t.pop.c*0.009, retire = t.pop.w*0.0022;
   t.pop.c -= matur; t.pop.w += matur - retire; t.pop.e += retire;
   const med = t.techs.medicine ? 0.5 : 1;
+  G.stats.naturalDeaths += t.pop.e*0.018*med + t.pop.w*0.0009*med + t.pop.c*0.0014*med;
   t.pop.e -= t.pop.e*0.018*med;
   t.pop.w -= t.pop.w*0.0009*med;
   t.pop.c -= t.pop.c*0.0014*med;
@@ -1306,6 +1337,8 @@ function moodTick(t){
   if(t.religion!==null) h += 4;
   if(t.flags.temple) h += 3;
   if(t.techs.weaving) h += 2;
+  if(t.flags.amenity) h += Math.min(t.flags.amenity*2, 6);
+  if(t.flags.pride) h += Math.min(t.flags.pride, 3);
   if(t.techs.philosophy) h += 3;
   const dens = popOf(t)/Math.max(t.tiles.length,1);
   if(dens > 1.6) h -= (dens-1.6)*8;
@@ -1362,8 +1395,10 @@ function dist2(i,j){ return Math.hypot(i%W - j%W, Math.floor(i/W) - Math.floor(j
 /* ---- research & discovery ---- */
 function researchTick(t){
   if(!t.research){
+    const blocked = t.flags.blockedTech||{};
     const avail = TECH_IDS.filter(id=>{
       if(t.techs[id]) return false;
+      if(blocked[id] > G.day) return false;
       const tc = TECHS[id];
       if(tc.era > t.era+1) return false;
       return tc.req.every(r=>t.techs[r]);
@@ -1371,6 +1406,16 @@ function researchTick(t){
     if(avail.length){
       avail.sort((a,b)=>TECHS[a].cost - TECHS[b].cost);
       t.research = chance(.7) ? avail[0] : pick(avail);
+      // a discovery new to the whole world needs the Voice's blessing
+      const worldFirst = !G.towns.some(o=>o.techs[t.research]);
+      if(worldFirst && !G.techAsked[t.research] && !G.prompts.some(p=>p.townId===t.id)){
+        G.techAsked[t.research] = true;
+        const tc = TECHS[t.research];
+        queuePrompt({kind:'tech_ask', townId:t.id, args:{tech:t.research},
+          title:'A new idea stirs',
+          body:'Scholars of '+t.name+' stand at the edge of something no one on '+G.planetName+' has known: '+tc.name+' — '+tc.desc+' Shall they pursue it?',
+          options:['Let them learn','Forbid it']});
+      }
     }
   }
   if(t.research){
@@ -1475,6 +1520,7 @@ function power(t){
     * (0.55 + t.morale/120)
     * (0.6 + clamp(t.foodSec||1,0,1.3)*0.45)
     * (t.flags.army?1.3:1)
+    * (t.flags.wall?1.18:1)
     * (0.9 + Math.min(t.res.metal,30)/30*0.25)
     * gen;
 }
@@ -1550,6 +1596,7 @@ function conquer(winner, loser, w){
   winner.pop.c += loser.pop.c*0.6; winner.pop.w += loser.pop.w*0.55; winner.pop.e += loser.pop.e*0.6;
   winner.unrest += 8; winner.flags.conqueredPeople = (winner.flags.conqueredPeople||0) + popOf(loser)*0.6;
   for(const i of loser.tiles.slice()) { releaseTile(loser,i); claimTile(winner,i); }
+  loser.classAtDeath = townClass(loser);
   loser.dead = true; loser.diedDay = G.day;
   const ldr = personById(loser.leader); if(ldr) ldr.alive=false;
   winner.warsWon++; winner.morale=clamp(winner.morale+12,0,100);
@@ -1716,6 +1763,7 @@ function territoryTick(t){
     releaseTile(t, far);
   }
   if(popOf(t) < 2 && !t.dead){
+    t.classAtDeath = townClass(t);
     t.dead = true; t.diedDay = G.day;
     for(const i of t.tiles.slice()) releaseTile(t,i);
     const l=personById(t.leader); if(l) l.alive=false;
@@ -1732,7 +1780,7 @@ function disastersTick(){
   if(chance(G.season===1?0.012:0.003)){
     const t = pick(towns);
     if(t.droughtDays<=0){
-      t.droughtDays = ri(15,35) * (t.techs.engineering?0.55:1);
+      t.droughtDays = ri(15,35) * (t.techs.engineering?0.55:1) * (t.flags.well?0.5:1);
       chron('The rains fail over '+t.name+'. Drought.', 'disaster', t.id);
     }
   }
@@ -1792,12 +1840,115 @@ function disastersTick(){
       hit.pop.w-=deaths*.5; hit.pop.c-=deaths*.3; hit.pop.e-=deaths*.2;
       hit.res.stone = Math.max(0, hit.res.stone - ri(4,14));
       hit.hapBuf -= 4;
+      G.stats.disasterDeaths += deaths;
       chron('A magnitude '+mag.toFixed(1)+' earthquake rattles '+hit.name+'. Walls crack; dust hangs in the lanes.', 'disaster', hit.id);
     } else if(sea){
-      chron('A magnitude '+mag.toFixed(1)+' earthquake rumbles beneath the sea. No town feels more than a shiver.', 'disaster');
+      if(mag>6.4 && chance(.5)){
+        const coastal = towns.filter(t=>terrOf(t).seaAdj>0 && Math.hypot(t.cap[0]-ex,t.cap[1]-ey)<26);
+        if(coastal.length){
+          const t = pick(coastal);
+          const guard = t.techs.engineering?0.4:1;
+          const deaths = popOf(t)*rf(0.01,0.05)*guard;
+          t.pop.w-=deaths*.5; t.pop.c-=deaths*.3; t.pop.e-=deaths*.2;
+          t.res.food *= (1-0.3*guard); t.res.wood = Math.max(0,t.res.wood-15);
+          t.hapBuf -= 10; G.stats.disasterDeaths += deaths;
+          G.routes = G.routes.filter(r=>!(r.sea && (r.a===t.id||r.b===t.id)));
+          chron('The sea pulls back from '+t.name+', then returns as a wall. Tsunami.', 'disaster', t.id);
+        } else chron('A magnitude '+mag.toFixed(1)+' earthquake rumbles beneath the sea. Great waves break on empty shores.', 'disaster');
+      } else chron('A magnitude '+mag.toFixed(1)+' earthquake rumbles beneath the sea. No town feels more than a shiver.', 'disaster');
     } else {
       chron('Far from any hearth, a magnitude '+mag.toFixed(1)+' earthquake shakes the empty land.', 'disaster');
     }
+  }
+  // wildfire in dry season forests
+  if(chance(G.season===1?0.006:0.0015)){
+    const wooded = towns.filter(t=>terrOf(t).forest>3 && !t.flags.fire);
+    if(wooded.length){
+      const t = pick(wooded);
+      t.flags.fire = {days: ri(5,12)};
+      chron('Smoke on the wind — the woods outside '+t.name+' are burning.', 'disaster', t.id);
+      if(!G.prompts.some(p=>p.townId===t.id&&p.kind==='firebreak')){
+        queuePrompt({kind:'firebreak', townId:t.id,
+          title:'Fire in the woods',
+          body:'A wildfire eats toward '+t.name+'. The foresters can cut a firebreak — costly in timber and sleep — or trust the wind to turn. Cut it?',
+          options:['Cut the firebreak','Trust the wind']});
+      }
+    }
+  }
+  for(const t of towns){
+    if(t.flags.fire){
+      t.flags.fire.days--;
+      const forestTiles = t.tiles.filter(i=>G.tiles[i]===T.FOREST);
+      if(forestTiles.length && chance(.7)){
+        const i = pick(forestTiles);
+        G.tiles[i]=T.DRY; G.fert[i]*=0.5; G.terrainDirty=true; t.terrDirty=true;
+        t.res.wood = Math.max(0, t.res.wood-3);
+      }
+      if(chance(.06)){ const d=popOf(t)*rf(.002,.01); t.pop.w-=d*.7; t.pop.c-=d*.3; G.stats.disasterDeaths+=d; }
+      if(t.flags.fire.days<=0){ delete t.flags.fire; chron('Rain, at last. The fire near '+t.name+' dies in the ash.', 'disaster', t.id); }
+    }
+  }
+  // locusts strip the fields
+  if(chance(G.season===1||G.season===2?0.0035:0.0008)){
+    const farms = towns.filter(t=>t.techs.agriculture && t.flags.locustUntil<G.day-60);
+    if(farms.length){
+      const t = pick(farms);
+      t.flags.locustUntil = G.day + ri(12,22);
+      t.res.food *= 0.7;
+      t.hapBuf -= 5;
+      chron('The sky over '+t.name+' darkens with wings. Locusts.', 'disaster', t.id);
+    }
+  }
+  // great storm off the sea
+  if(chance(0.004)){
+    const coastal = towns.filter(t=>terrOf(t).seaAdj>0);
+    if(coastal.length){
+      const t = pick(coastal);
+      const guard = t.techs.engineering?0.5:1;
+      t.res.food *= (1-0.12*guard); t.res.wood = Math.max(0,t.res.wood-8);
+      const deaths = popOf(t)*rf(0.001,0.008)*guard;
+      t.pop.w-=deaths*.6; t.pop.c-=deaths*.2; t.pop.e-=deaths*.2;
+      G.stats.disasterDeaths += deaths;
+      const cut = G.routes.find(r=>r.sea && (r.a===t.id||r.b===t.id));
+      if(cut){ G.routes = G.routes.filter(r=>r!==cut); chron('A great storm lashes '+t.name+'. Ships are lost; a sea road goes quiet.', 'disaster', t.id); }
+      else chron('A great storm lashes '+t.name+'. Roofs fly; the shore is strewn with wrack.', 'disaster', t.id);
+      t.hapBuf -= 5;
+    }
+  }
+  // a falling star
+  if(chance(0.0009)){
+    const mi = ri(0,W*H-1);
+    const mx=mi%W, my=(mi/W)|0;
+    let struck=null;
+    for(const t of towns){ if(Math.hypot(t.cap[0]-mx,t.cap[1]-my)<5){ struck=t; break; } }
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+      const x=mx+dx,y=my+dy;
+      if(x<0||y<0||x>=W||y>=H) continue;
+      if(dx*dx+dy*dy>2) continue;
+      const j=y*W+x;
+      if(TINFO[G.tiles[j]].land){ G.tiles[j]=T.ASH; G.fert[j]=0.05; G.ashHeal.push({i:j, at:G.day+ri(60,120)}); const own=G.TO[j]; if(own!==-1){const tt=townById(own); if(tt)tt.terrDirty=true;} }
+    }
+    G.terrainDirty = true;
+    if(struck){
+      const deaths = popOf(struck)*rf(.02,.08);
+      struck.pop.w-=deaths*.5; struck.pop.c-=deaths*.3; struck.pop.e-=deaths*.2;
+      struck.hapBuf -= 12; G.stats.disasterDeaths += deaths;
+      chron('A star falls screaming out of the night onto '+struck.name+'. The ground burns.', 'disaster', struck.id);
+    } else {
+      const near = towns.slice().sort((a,b)=>Math.hypot(a.cap[0]-mx,a.cap[1]-my)-Math.hypot(b.cap[0]-mx,b.cap[1]-my))[0];
+      chron('A star falls out of the night and strikes the empty land. The flash is seen from every rooftop.', 'disaster');
+      if(near && !G.prompts.some(p=>p.kind==='name_meteor')){
+        queuePrompt({kind:'name_meteor', townId:near.id, input:true, suggest:NG.word(2,3),
+          title:'The fallen star',
+          body:'Searchers from '+near.name+' find a smoking crater and, at its heart, a stone that fell from heaven. What shall it be called?',
+          options:['Name it']});
+      }
+    }
+  }
+  // a winter to remember
+  if(G.day%YEAR===SEASON_LEN*3 && chance(0.18)){
+    G.hardWinterUntil = G.day + SEASON_LEN;
+    chron('The first snow falls early and does not stop. This winter will be spoken of for years.', 'disaster');
   }
   // drought countdown + desertification
   for(const t of towns){
@@ -1852,7 +2003,7 @@ function plagueTick(){
       if(since > dur){ if(t.plague===pl){ t.plague=null; chron(pl.name+' loosens its grip on '+t.name+'.', 'disaster', t.id);} continue; }
       active++;
       t.plague = pl;
-      const mort = pl.severity * (t.techs.medicine?0.45:1) * (t.techs.sanitation?0.55:1) * (t.flags.quarantine?0.8:1);
+      const mort = pl.severity * (t.techs.medicine?0.45:1) * (t.techs.sanitation?0.55:1) * (t.flags.quarantine?0.8:1) * Math.pow(0.85, t.flags.clean||0);
       const d = popOf(t)*mort;
       t.pop.c-=d*.3; t.pop.w-=d*.4; t.pop.e-=d*.3;
       G.stats.plagueDeaths += d;
@@ -1926,7 +2077,7 @@ function discoveryTick(){
     if(t.techs.hunting && chance(0.0045 + (G.people.some(p=>p.alive&&p.role==='explorer'&&p.townId===t.id)?0.008:0))){
       discoverSpecies(t,false);
     }
-    if(t.techs.astronomy && G.starName && chance(t.techs.optics ? 0.014 : 0.006)){
+    if(t.techs.astronomy && G.starName && chance((t.techs.optics ? 0.014 : 0.006)*(t.flags.observatory?2:1))){
       const type = chance(.6)?'planet':'moon';
       if(G.bodies.length < 9 && !G.prompts.some(p=>p.kind==='name_body')){
         queuePrompt({kind:'name_body', townId:t.id, args:{type}, input:true, suggest:NG.planet(),
@@ -2016,6 +2167,121 @@ function peopleTick(){
 }
 
 /* ---- milestones ---- */
+/* ============================================================
+   PROJECTS — towns propose constructions; finished works become
+   named landmarks on the map with lasting effects.
+   ============================================================ */
+const PROJECTS = {
+  well:       {n:'Well',        glyph:'◌', days:10, cost:{wood:10},         req:[],              min:8,   desc:'water through any drought'},
+  granary:    {n:'Granary',     glyph:'▤', days:14, cost:{wood:20},         req:['agriculture'], min:12,  desc:'deeper stores'},
+  farmstead:  {n:'Farmstead',   glyph:'░', days:12, cost:{wood:15},         req:['agriculture'], min:10,  desc:'richer fields'},
+  mill:       {n:'Mill',        glyph:'✵', days:18, cost:{wood:30},         req:['wheel'],       min:18,  desc:'grain ground fine'},
+  market:     {n:'Market',      glyph:'⚖', days:16, cost:{wood:25},         req:['currency'],    min:25,  desc:'trade and talk'},
+  bathhouse:  {n:'Bathhouse',   glyph:'♨', days:20, cost:{stone:25},        req:['masonry'],     min:25,  desc:'clean and warm'},
+  theater:    {n:'Theater',     glyph:'◍', days:22, cost:{wood:20,stone:15},req:['philosophy'],  min:30,  desc:'stories on a stage'},
+  library:    {n:'Library',     glyph:'▥', days:24, cost:{wood:15,stone:20},req:['writing'],     min:25,  desc:'memory in rows'},
+  school:     {n:'School',      glyph:'☗', days:18, cost:{wood:22},         req:['writing'],     min:20,  desc:'letters for the young'},
+  statue:     {n:'Statue',      glyph:'☻', days:12, cost:{stone:18},        req:['masonry'],     min:15,  desc:'a face in stone', repeat:true},
+  monument:   {n:'Monument',    glyph:'▲', days:30, cost:{stone:45},        req:['masonry'],     min:35,  desc:'something to outlast us'},
+  wall:       {n:'Wall',        glyph:'▢', days:26, cost:{stone:40},        req:['masonry'],     min:25,  desc:'stone against spears'},
+  harbor:     {n:'Harbor',      glyph:'⚓', days:22, cost:{wood:35},         req:['sailing'],     min:25,  sea:true, desc:'a mouth to the sea'},
+  lighthouse: {n:'Lighthouse',  glyph:'◉', days:26, cost:{stone:35},        req:['sailing','masonry'], min:30, sea:true, desc:'a star for sailors'},
+  forge:      {n:'Forge',       glyph:'⚒', days:20, cost:{stone:20,metal:8},req:['bronze'],      min:25,  desc:'metal bent to will'},
+  mine:       {n:'Mine',        glyph:'◩', days:24, cost:{wood:30},         req:['bronze'],      min:25,  hills:true, desc:'down into the dark'},
+  park:       {n:'Park',        glyph:'⚘', days:10, cost:{wood:8},          req:['philosophy'],  min:30,  desc:'green kept on purpose'},
+  gardens:    {n:'Gardens',     glyph:'✿', days:16, cost:{wood:12},         req:['agriculture'], min:20,  desc:'beauty that feeds'},
+  arena:      {n:'Arena',       glyph:'◎', days:30, cost:{stone:50},        req:['engineering'], min:50,  desc:'the roar of the crowd'},
+  hospital:   {n:'Hospital',    glyph:'✚', days:26, cost:{wood:25,stone:25},req:['medicine'],    min:40,  desc:'sickness met indoors'},
+  observatory:{n:'Observatory', glyph:'☉', days:28, cost:{stone:30,metal:10},req:['astronomy'],  min:35,  desc:'eyes aimed upward'},
+  university: {n:'University',  glyph:'♜', days:36, cost:{stone:45,metal:15},req:['printing'],   min:60,  desc:'every question at once'},
+  factory:    {n:'Factory',     glyph:'⚙', days:30, cost:{metal:30,stone:20},req:['steam'],      min:60,  desc:'the future, smoking'},
+};
+function landmarkName(t, type){
+  const def = PROJECTS[type];
+  if(type==='statue'){ const l=personById(t.leader); return 'Statue of '+(l?l.name:NG.person()); }
+  if(chance(.5)) return t.name+' '+def.n;
+  return NG.word(1,2)+' '+def.n;
+}
+function projectAskTick(){
+  for(const t of aliveTowns()){
+    if(t.project || G.prompts.some(p=>p.townId===t.id)) continue;
+    if(!chance(0.08 + t.era*0.008)) continue;
+    const c = terrOf(t);
+    const have = {}; for(const lm of (G.landmarks||[])) if(lm.townId===t.id) have[lm.type]=true;
+    const opts = Object.keys(PROJECTS).filter(k=>{
+      const d = PROJECTS[k];
+      if(have[k] && !d.repeat) return false;
+      if(popOf(t) < d.min) return false;
+      if(d.sea && c.seaAdj<1) return false;
+      if(d.hills && c.hills+c.mount<2) return false;
+      return d.req.every(r=>t.techs[r]);
+    });
+    if(!opts.length) continue;
+    const type = pick(opts);
+    const d = PROJECTS[type];
+    const costStr = Object.entries(d.cost).map(([k,v])=>v+' '+k).join(', ');
+    queuePrompt({kind:'project_ask', townId:t.id, args:{type},
+      title:t.name+' wants to build',
+      body:'Builders of '+t.name+' have drawn plans for a '+d.n.toLowerCase()+' — '+d.desc+'. It will take '+costStr+' and '+d.days+' days of labor. Let them build?',
+      options:['Build it','Not now']});
+    return; // one proposal per day, world-wide
+  }
+}
+function projectTick(t){
+  if(!t.project) return;
+  const pj = t.project, d = PROJECTS[pj.type];
+  // pay as you go
+  for(const k in d.cost){
+    const perDay = d.cost[k]/d.days;
+    if(t.res[k] >= perDay){ t.res[k]-=perDay; }
+    else { pj.stalled=(pj.stalled||0)+1; if(pj.stalled>25){ t.project=null; chron('The half-built '+d.n.toLowerCase()+' of '+t.name+' is abandoned for want of materials.', 'town', t.id); } return; }
+  }
+  pj.stalled = 0;
+  pj.days--;
+  if(pj.days>0) return;
+  // place it on an owned tile away from the capital
+  t.project = null;
+  let tile = t.cap[1]*W+t.cap[0];
+  const far = t.tiles.filter(i=>{ const x=i%W,y=(i/W)|0; return Math.abs(x-t.cap[0])+Math.abs(y-t.cap[1])>1; });
+  if(far.length) tile = pick(far);
+  if(!G.landmarks) G.landmarks=[];
+  const lm = {name:landmarkName(t,pj.type), type:pj.type, glyph:PROJECTS[pj.type].glyph, tile, townId:t.id, day:G.day};
+  G.landmarks.push(lm);
+  applyLandmarkFx(t, pj.type);
+  t.hapBuf += 6; t.faith = clamp(t.faith+2,0,100);
+  chron(lm.name+' rises in '+t.name+'.', 'town', t.id);
+}
+function applyLandmarkFx(t, type){
+  switch(type){
+    case 'well': t.flags.well=true; break;
+    case 'granary': t.flags.granary=true; break;
+    case 'farmstead': case 'mill': case 'gardens': t.flags.cropBonus=(t.flags.cropBonus||0)+0.07; break;
+    case 'market': t.flags.market=true; break;
+    case 'school': case 'library': case 'university': t.flags.knowB=(t.flags.knowB||0)+(type==='university'?1.2:0.45); break;
+    case 'hospital': case 'bathhouse': t.flags.clean=(t.flags.clean||0)+1; break;
+    case 'wall': t.flags.wall=true; break;
+    case 'harbor': t.flags.harbor=true; t.flags.fishBonus=(t.flags.fishBonus||0)+0.05; break;
+    case 'lighthouse': t.flags.lighthouse=true; break;
+    case 'forge': t.flags.forge=true; break;
+    case 'mine': t.flags.mine=true; break;
+    case 'statue': case 'monument': t.morale=clamp(t.morale+8,0,100); t.flags.pride=(t.flags.pride||0)+1; break;
+    case 'theater': case 'park': case 'arena': t.flags.amenity=(t.flags.amenity||0)+1; break;
+    case 'observatory': t.flags.observatory=true; break;
+    case 'factory': t.flags.factory=true; break;
+  }
+}
+function townLandmarks(t){ return (G.landmarks||[]).filter(l=>l.townId===t.id); }
+
+/* ---- town classification ---- */
+function townClass(t){
+  const p = popOf(t);
+  let c;
+  if(p<3) c='camp'; else if(p<10) c='hamlet'; else if(p<25) c='village';
+  else if(p<60) c='town'; else if(p<120) c='city'; else if(p<250) c='metropolis'; else c='empire';
+  if(t.parent!==null && G.day - t.foundedDay < 150 && p<60) c='colony';
+  return c;
+}
+
 const MILESTONES = [
   {id:'flame',   name:'First Flame',        desc:'Any town masters Fire.',                cond:()=>aliveTowns().some(t=>t.techs.fire)},
   {id:'sow',     name:'Seeds of Tomorrow',  desc:'Any town reaches the Agricultural Age.',cond:()=>aliveTowns().some(t=>t.era>=1)},
@@ -2069,6 +2335,12 @@ function faithTick(){
   const tp = worldPop();
   if(tp > (G.stats.peakPop||0)) G.stats.peakPop = tp;
   G.faith = ts.length ? ts.reduce((s,t)=>s+t.faith*popOf(t),0)/Math.max(tp,1) : 0;
+  const avgHap = ts.length ? ts.reduce((s,t)=>s+t.happiness,0)/ts.length : 0;
+  const maxEra = ts.length ? Math.max.apply(null, ts.map(t=>t.era)) : 0;
+  G.stats.score = clamp(
+    0.25*(G.faith/100) + 0.25*Math.min(tp/600,1) + 0.20*(Object.keys(G.milestones).length/MILESTONES.length)
+    + 0.15*(avgHap/100) + 0.15*(maxEra/(ERAS.length-1)), 0, 1);
+  if(G.stats.score > (G.stats.peakScore||0)) G.stats.peakScore = G.stats.score;
 }
 function checkEnd(){
   if(G.over || G.pendingSettle || !G.towns.length) return;
@@ -2099,10 +2371,11 @@ function newGame(seedStr){
     TO:new Int16Array(W*H).fill(-1),
     towns:[], people:[], religions:[], species:[],
     townSeq:0, personSeq:0, religionSeq:0, promptSeq:0,
-    rel:{}, wars:[], routes:[], plagues:[], ashHeal:[],
+    rel:{}, wars:[], routes:[], plagues:[], ashHeal:[], landmarks:[], techAsked:{},
     prompts:[], decisions:[], chron:[], milestones:{},
-    stats:{wars:0,warDeaths:0,famineDeaths:0,plagueDeaths:0,revolutions:0,colonies:0,townsFallen:0,peakPop:0},
-    faith:STARTING_FAITH, nextPromptDay:3,
+    stats:{wars:0,warDeaths:0,famineDeaths:0,plagueDeaths:0,revolutions:0,colonies:0,townsFallen:0,peakPop:0,
+      births:0,naturalDeaths:0,disasterDeaths:0,promptsAnswered:0,promptsMissed:0,streak:0,bestStreak:0,score:0,peakScore:0},
+    faith:STARTING_FAITH, nextPromptDay:3, hardWinterUntil:0,
     lastWarDay:0, lastLine:'', terrainDirty:true, over:null,
     space:{prog:0, stage:0}, offworld:null,
     viewMode:'terrain',
@@ -2144,6 +2417,7 @@ function nextDay(n){
       demographicsTick(t);
       moodTick(t);
       researchTick(t);
+      projectTick(t);
       territoryTick(t);
     }
     peopleTick();
@@ -2184,6 +2458,7 @@ function nextDay(n){
     }
     // unnamed landmasses get asked about once a town stands on them
     landmassAskTick();
+    projectAskTick();
     autoDecideStale();
     dailyRecap();
     milestonesTick();
@@ -2269,6 +2544,23 @@ function render(){
     }
     ctx.stroke();
   }
+  // fallen towns leave gray bones on the map
+  for(const t of G.towns){
+    if(!t.dead) continue;
+    const x=t.cap[0]*S+S/2, y=t.cap[1]*S+S/2;
+    ctx.strokeStyle='rgba(150,150,150,.55)'; ctx.lineWidth=1;
+    ctx.strokeRect(x-3,y-3,6,6);
+  }
+  // landmarks
+  ctx.font='bold 9px monospace'; ctx.textBaseline='middle'; ctx.textAlign='center';
+  for(const lm of (G.landmarks||[])){
+    const owner=townById(lm.townId);
+    const x=(lm.tile%W)*S+S/2, y=((lm.tile/W)|0)*S+S/2;
+    ctx.fillStyle = owner&&!owner.dead ? '#fff' : 'rgba(200,200,200,.5)';
+    ctx.strokeStyle='#000'; ctx.lineWidth=2.5;
+    ctx.strokeText(lm.glyph, x, y);
+    ctx.fillText(lm.glyph, x, y);
+  }
   for(const rt of G.routes){
     const a=townById(rt.a), b=townById(rt.b);
     if(!a||!b||a.dead||b.dead) continue;
@@ -2347,6 +2639,8 @@ const UI = {
       else if(k==='l') this.togglePop('saves');
       else if(k==='i') this.togglePop('info');
       else if(k==='w') this.togglePop('customize');
+      else if(k==='j') this.togglePop('projects');
+      else if(k==='s') this.togglePop('stats');
       else if(k==='\\') this.togglePop('settings');
     });
   },
@@ -2387,7 +2681,7 @@ const UI = {
     let rows='';
     for(const t of ts.slice(0,14)){
       rows+='<div class="trow" data-town="'+t.id+'">'
-        +'<span class="nm" style="color:hsl('+hueOf(t)+',75%,65%)">'+esc(t.name)+'</span>'
+        +'<span class="nm" style="color:hsl('+hueOf(t)+',75%,65%)">'+esc(t.name)+' <span style="color:#666;font-size:16px;font-style:italic">'+townClass(t)+'</span></span>'
         +'<span>'+POP_E+Math.round(popOf(t))+' &nbsp;<span style="color:#8ad1ff">'+SIZE_E+'</span>'+t.tiles.length+'</span></div>';
     }
     if(ts.length>14) rows+='<div class="trow" data-pop="towns" style="justify-content:center;color:#888">&#8230; '+(ts.length-14)+' more</div>';
@@ -2437,6 +2731,8 @@ const UI = {
     if(b.dataset.shuf){ const inp=$('pin_'+pid); if(inp) inp.value=this.freshSuggest(p); return; }
     const inp=$('pin_'+pid);
     const k=G.prompts.indexOf(p); if(k>=0) G.prompts.splice(k,1);
+    G.stats.promptsAnswered++; G.stats.streak++;
+    if(G.stats.streak > (G.stats.bestStreak||0)) G.stats.bestStreak = G.stats.streak;
     resolvePrompt(p, +b.dataset.choice, inp?inp.value:null);
     this.renderChron(); this.updateHUD(); render(); this.refreshPanel();
   },
@@ -2509,13 +2805,15 @@ const UI = {
     if(k==='town'){
       const t=this.selectedTown!=null?townById(this.selectedTown):null;
       if(!t){ this.popKind='towns'; return this.refreshPanel(); }
-      title='<span style="color:hsl('+hueOf(t)+',75%,65%)">'+esc(t.name)+'</span>'; sub='Town'; html=this.townHTML(t);
+      title='<span style="color:hsl('+hueOf(t)+',75%,65%)">'+esc(t.name)+'</span>'; sub=t.dead?('ghost '+(t.classAtDeath||'town')):townClass(t); html=this.townHTML(t);
     }
     else if(k==='towns'){ title='Towns'; sub='of '+esc(G.planetName); html=this.townsHTML(); }
     else if(k==='tech'){ title='Knowledge'; sub='what the world has learned'; html=this.techHTML(); }
     else if(k==='people'){ title='People'; sub='names worth remembering'; html=this.peopleHTML(); }
     else if(k==='planet'){ title=esc(G.planetName); sub='Planet'; html=this.planetHTML(); }
     else if(k==='goals'){ title='Goals'; sub='milestones of a civilization'; html=this.goalsHTML(); }
+    else if(k==='projects'){ title='Projects'; sub='what the towns are building'; html=this.projectsHTML(); }
+    else if(k==='stats'){ title='Stats'; sub='the ledger of '+esc(G.planetName); html=this.statsHTML(); }
     else if(k==='customize'){ title='Customize'; sub='shape the next world'; html=this.customizeHTML(); }
     else if(k==='settings'){ title='Settings'; sub=''; html=this.settingsHTML(); }
     else if(k==='saves'){ title='Saves'; sub='three slots'; html=this.savesHTML(); }
@@ -2568,6 +2866,12 @@ const UI = {
     if(t.flags.rationUntil>G.day)tags.push('<span class="tag">rationing</span>');
     if(G.day<t.protectedUntil)tags.push('<span class="tag">young colony</span>');
     if(tags.length) h+=this.prow('Status', tags.join(''));
+    if(t.project){
+      const d=PROJECTS[t.project.type];
+      h+=this.prow('Building', d.n+' <span class="k" style="color:var(--dim)">'+(d.days-t.project.days)+' / '+d.days+' days</span>');
+    }
+    const lms=townLandmarks(t);
+    if(lms.length) h+=this.prow('Works', lms.map(l=>l.glyph+' '+esc(l.name)).join('<br>'));
     h+=this.prow('Founded', 'Day '+t.foundedDay);
     const rels=aliveTowns().filter(o=>o.id!==t.id)
       .map(o=>({o,r:getRel(t.id,o.id)}))
@@ -2600,7 +2904,7 @@ const UI = {
     const dead=G.towns.filter(t=>t.dead);
     if(dead.length){
       h+='<h3 class="sec">Fallen</h3>';
-      for(const t of dead) h+=this.prow(esc(t.name),'day '+t.diedDay);
+      for(const t of dead) h+=this.prow(esc(t.name)+' <span style="color:#666;font-style:italic">ghost '+(t.classAtDeath||'town')+'</span>','day '+t.diedDay);
     }
     return h;
   },
@@ -2665,6 +2969,47 @@ const UI = {
     }
     return h;
   },
+  projectsHTML(){
+    let h='<h3 class="sec">Under construction</h3>';
+    const building = aliveTowns().filter(t=>t.project);
+    if(!building.length) h+='<div class="none">Nothing on the drawing boards.</div>';
+    for(const t of building){
+      const d=PROJECTS[t.project.type];
+      h+=this.prow('<span data-town="'+t.id+'" style="cursor:pointer;color:hsl('+hueOf(t)+',75%,65%)">'+esc(t.name)+'</span> — '+d.n, d.days-t.project.days+' / '+d.days+' days'+(t.project.stalled?' <span class="c-disaster">(stalled)</span>':''));
+    }
+    h+='<h3 class="sec">Standing works</h3>';
+    const lms=(G.landmarks||[]).slice().reverse();
+    if(!lms.length) h+='<div class="none">Nothing built yet.</div>';
+    for(const lm of lms){
+      const o=townById(lm.townId);
+      h+=this.prow(lm.glyph+' '+esc(lm.name), (o?(o.dead?'ruin of ':'')+esc(o.name):'?')+' · day '+lm.day);
+    }
+    return h;
+  },
+  statsHTML(){
+    const s=G.stats;
+    let h='';
+    h+=this.prow('Score', '<b>'+(s.score*100).toFixed(0)+'</b> <span class="k" style="color:var(--dim)">peak '+(s.peakScore*100).toFixed(0)+'</span>');
+    h+=this.prow('Day', G.day+' · Year '+yearOf());
+    h+=this.prow('Population', Math.round(worldPop())+' <span class="k" style="color:var(--dim)">peak '+Math.round(s.peakPop||0)+'</span>');
+    h+=this.prow('Births', Math.round(s.births));
+    h+='<h3 class="sec">Deaths</h3>';
+    const dn=Math.round(s.naturalDeaths), df=Math.round(s.famineDeaths), dp=Math.round(s.plagueDeaths), dw=Math.round(s.warDeaths), dd=Math.round(s.disasterDeaths);
+    h+=this.prow('All causes', dn+df+dp+dw+dd);
+    h+=this.prow('Old age', dn); h+=this.prow('Famine', df); h+=this.prow('Plague', dp);
+    h+=this.prow('War', dw); h+=this.prow('Disaster', dd);
+    h+='<h3 class="sec">The Voice</h3>';
+    h+=this.prow('Counsel given', s.promptsAnswered);
+    h+=this.prow('Left unanswered', s.promptsMissed);
+    h+=this.prow('Best streak', s.bestStreak||0);
+    h+='<h3 class="sec">The world</h3>';
+    h+=this.prow('Towns risen / fallen', G.townSeq+' / '+s.townsFallen);
+    h+=this.prow('Colonies', s.colonies);
+    h+=this.prow('Wars', s.wars);
+    h+=this.prow('Revolutions', s.revolutions);
+    h+=this.prow('Works built', (G.landmarks||[]).length);
+    return h;
+  },
   customizeHTML(){
     const slider=(key,label,min,max,unit)=>{
       const v=CUSTOM[key];
@@ -2712,7 +3057,12 @@ const UI = {
       h+='<div class="prow"><span class="k">Slot '+s+' <span style="color:var(--dim);font-size:17px">'+info+'</span></span>'
         +'<span><button data-act="save" data-arg="'+s+'">Save</button> <button data-act="load" data-arg="'+s+'">Load</button></span></div>';
     }
-    h+='<div style="color:#777;font-style:italic;margin-top:8px">Saves live in this browser&rsquo;s storage.</div>';
+    h+='<h3 class="sec">Files</h3>';
+    h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">'
+      +'<button data-act="exportFile">Save to file</button>'
+      +'<button data-act="importFile">Load from file</button>'
+      +'<input type="file" id="fileLoad" accept=".worldseed,.json,.planet" style="display:none"></div>';
+    h+='<div style="color:#777;font-style:italic;margin-top:8px">Slots live in this browser&rsquo;s storage. Files go wherever you keep them — share a world, or carry it between machines.</div>';
     return h;
   },
   infoHTML(){
@@ -2742,6 +3092,29 @@ const UI = {
     else if(act==='save'){ this.saveSlot(arg); }
     else if(act==='load'){ this.loadSlot(arg); }
     else if(act==='newworld'){ const f=$('seedField'); this.newWorld(f&&f.value.trim()?f.value.trim():this.randSeed()); }
+    else if(act==='exportFile'){ this.exportFile(); }
+    else if(act==='importFile'){
+      const inp=$('fileLoad'); if(!inp) return;
+      inp.onchange=()=>{
+        const f=inp.files[0]; if(!f) return;
+        const rd=new FileReader();
+        rd.onload=()=>{
+          try{
+            const o=JSON.parse(rd.result);
+            if(o.meta && o.planet){ this.toast('That is a GenTown .planet file — Worldseed worlds use .worldseed'); return; }
+            if(!o.seedStr || o.tiles===undefined){ this.toast('Not a Worldseed world file'); return; }
+            this.restoreSnap(rd.result);
+            this.stopAuto(); this.closePop();
+            render(); this.updateHUD(); this.renderChron();
+            this.toast('World loaded — '+esc(G.planetName)+', day '+G.day);
+            if(G.over) this.gameOver();
+          }catch(e){ this.toast('That file could not be read'); }
+        };
+        rd.readAsText(f);
+        inp.value='';
+      };
+      inp.click();
+    }
   },
 
   /* ---- saves ---- */
@@ -2774,6 +3147,11 @@ const UI = {
       t.plague=(typeof t.plague==='number'&&t.plague>=0&&o.plagues[t.plague])?o.plagues[t.plague]:null;
     }
     G=o; G.terrainDirty=true;
+    if(!G.landmarks) G.landmarks=[];
+    if(!G.techAsked) G.techAsked={};
+    if(G.hardWinterUntil===undefined) G.hardWinterUntil=0;
+    for(const k of ['births','naturalDeaths','disasterDeaths','promptsAnswered','promptsMissed','streak','bestStreak','score','peakScore'])
+      if(G.stats[k]===undefined) G.stats[k]=0;
     const h0=xmur3(G.seedStr); SEEDN=h0();
     R=mulberry32(xmur3(G.seedStr+'@'+G.day)());
     const names=G.landmassNames||{}, asked=G.lmAsked||{};
@@ -2786,6 +3164,17 @@ const UI = {
     try{ localStorage.setItem('worldseed_slot'+n,data); this.toast('Saved — slot '+n); }
     catch(e){ this.memSaves[n]=data; this.toast('Saved for this session — slot '+n); }
     this.refreshPanel();
+  },
+  exportFile(){
+    if(!G||G.pendingSettle){ this.toast('Settle a town first'); return; }
+    const data=this.snapshot();
+    const blob=new Blob([data],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=(G.planetName.replace(/[^a-z0-9 _-]/gi,'')||'world')+'-day'+G.day+'.worldseed';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    this.toast('World written to file');
   },
   loadSlot(n){
     let data=null;
