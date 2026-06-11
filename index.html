@@ -2672,8 +2672,35 @@ const UI = {
     if(HAS_DOM && $('autoBtn')) $('autoBtn').innerHTML='&#9654; Auto';
   },
 
+  execUnlocked(kind){
+    if(!G) return true;
+    switch(kind){
+      case 'customize': case 'settings': case 'saves': case 'info': return true;
+      case 'towns': return G.towns.length>0;
+      case 'tech': return G.towns.some(t=>Object.keys(t.techs).length>0);
+      case 'people': return G.people.some(p=>p.fame>=1) || G.people.some(p=>!p.alive&&p.role==='leader');
+      case 'planet': return G.planetName!=='the Unnamed World';
+      case 'goals': return Object.keys(G.milestones).length>0;
+      case 'projects': return (G.landmarks&&G.landmarks.length>0) || G.towns.some(t=>t.project);
+      case 'stats': return G.day>=25;
+    }
+    return true;
+  },
+  syncExecMenu(){
+    if(!G.execSeen) G.execSeen={};
+    document.querySelectorAll('.mitem').forEach(el=>{
+      const kind=el.dataset.pop;
+      const open=this.execUnlocked(kind);
+      el.style.display = open ? '' : 'none';
+      if(open && !G.execSeen[kind]){
+        G.execSeen[kind]=true;
+        if(G.day>0 && kind!=='towns') this.toast('Executive — '+el.textContent.replace(/\[.\]\s*/,'').trim()+' unlocked');
+      }
+    });
+  },
   updateHUD(){
     if(!G) return;
+    this.syncExecMenu();
     $('dayHead').textContent='Day '+G.day;
     $('planetName').textContent=G.planetName;
     $('townsOf').innerHTML='Towns of <b>'+esc(G.planetName)+'</b>';
@@ -2784,6 +2811,7 @@ const UI = {
 
   /* ---- popups ---- */
   togglePop(kind){
+    if(kind!=='town' && kind!=='over' && !this.execUnlocked(kind)) return;
     if(this.popKind===kind && $('shade').classList.contains('open')) this.closePop();
     else this.openPop(kind);
   },
@@ -2910,14 +2938,20 @@ const UI = {
   },
   techHTML(){
     const ts=aliveTowns(); let h='';
-    for(let e=0;e<ERAS.length;e++){
-      h+='<h3 class="sec">'+ERAS[e]+'</h3>';
+    const maxEra = ts.length ? Math.max.apply(null, ts.map(t=>t.era)) : 0;
+    const showEra = Math.min(maxEra+1, ERAS.length-1);
+    for(let e=0;e<=showEra;e++){
+      let block='';
       for(const id of TECH_IDS){
         const tc=TECHS[id]; if(tc.era!==e) continue;
         const owners=ts.filter(t=>t.techs[id]).length;
-        h+='<div class="prow"><span'+(owners?'':' style="color:var(--faint)"')+'>'+tc.name+' <span style="color:#666;font-size:17px">'+tc.desc+'</span></span><span class="v" style="color:var(--dim)">'+(owners?owners+'/'+ts.length:'&mdash;')+'</span></div>';
+        const reachable = owners>0 || ts.some(t=>t.research===id) || ts.some(t=>tc.req.every(r=>t.techs[r]));
+        if(!reachable) continue; // not yet dreamt of
+        block+='<div class="prow"><span'+(owners?'':' style="color:var(--faint)"')+'>'+tc.name+(owners?' <span style="color:#666;font-size:17px">'+tc.desc+'</span>':'')+'</span><span class="v" style="color:var(--dim)">'+(owners?owners+'/'+ts.length:'&mdash;')+'</span></div>';
       }
+      if(block) h+='<h3 class="sec">'+ERAS[e]+'</h3>'+block;
     }
+    h+='<div style="color:#666;font-style:italic;margin-top:12px">What lies beyond has not yet been dreamt of.</div>';
     return h;
   },
   peopleHTML(){
@@ -2938,7 +2972,7 @@ const UI = {
   planetHTML(){
     let land=0; for(let i=0;i<W*H;i++) if(TINFO[G.tiles[i]].land) land++;
     let h='';
-    h+=this.prow('Star', G.starName?esc(G.starName):'<span class="none">unnamed — awaits astronomy</span>');
+    h+=this.prow('Star', G.starName?esc(G.starName):'<span class="none">the people have no name for it yet</span>');
     h+=this.prow('Date', 'Day '+G.day+' &middot; '+SEASONS[G.season]+' &middot; Year '+yearOf());
     h+=this.prow('Seed', '<span style="user-select:text">'+esc(G.seedStr)+'</span>');
     h+=this.prow('Land', Math.round(land/(W*H)*100)+'%');
@@ -2956,17 +2990,41 @@ const UI = {
     h+='<h3 class="sec">Codex of Life</h3>';
     if(!named.length) h+='<div class="none">Nothing recorded yet.</div>';
     for(const s of named) h+=this.prow(esc(s.name), s.kind+' &middot; by '+esc(s.namedBy||'?'));
-    const left=G.species.length-named.length;
-    if(left>0) h+='<div style="color:#777;margin-top:6px;font-style:italic">'+left+' species remain undiscovered&hellip;</div>';
+    if(named.length<G.species.length) h+='<div style="color:#777;margin-top:6px;font-style:italic">The wilds surely hold more&hellip;</div>';
     return h;
   },
+  goalVisible(m){
+    if(G.milestones[m.id]) return true;
+    const ts=aliveTowns();
+    const maxEra = ts.length ? Math.max.apply(null, ts.map(t=>t.era)) : 0;
+    switch(m.id){
+      case 'flame': case 'sow': case 'pop200': case 'year3': return true;
+      case 'word': case 'faith1': return maxEra>=1;
+      case 'bronze': case 'sail': return maxEra>=1;
+      case 'sky': return maxEra>=3;
+      case 'press': return maxEra>=4;
+      case 'engine': return maxEra>=5;
+      case 'wings': return maxEra>=6;
+      case 'orbit': return maxEra>=6;
+      case 'footfall': return !!G.milestones['orbit'];
+      case 'worldseed': return !!G.milestones['footfall'];
+      case 'pop500': return !!G.milestones['pop200'];
+      case 'days1000': return !!G.milestones['year3'];
+      case 'codex': return G.species.some(s=>s.name);
+      case 'pax': return G.stats.wars>0;
+      case 'unite': return G.stats.townsFallen+G.stats.colonies>0;
+    }
+    return true;
+  },
   goalsHTML(){
-    let h='';
+    let h='', hidden=0;
     for(const m of MILESTONES){
       const got=G.milestones[m.id];
-      if(got) h+=this.prow('<span class="c-mile">&#10003; '+m.name+'</span>','day '+got);
-      else h+=this.prow('<span style="color:var(--faint)">&#9633; '+m.name+'</span>','<span style="color:#666;font-size:17px">'+m.desc+'</span>');
+      if(got){ h+=this.prow('<span class="c-mile">&#10003; '+m.name+'</span>','day '+got); continue; }
+      if(!this.goalVisible(m)){ hidden++; continue; }
+      h+=this.prow('<span style="color:var(--faint)">&#9633; '+m.name+'</span>','<span style="color:#666;font-size:17px">'+m.desc+'</span>');
     }
+    for(let i=0;i<hidden;i++) h+=this.prow('<span style="color:#444">&#9633; ???</span>','');
     return h;
   },
   projectsHTML(){
