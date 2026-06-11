@@ -2,204 +2,179 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Worldseed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#000;--fg:#fff;--dim:#9a9a9a;--faint:#555;--accent:#ffd75e;--bad:#ff5e5e;--good:#7dff8a;
-  --panel:#0a0a0a;--border:2px solid #fff;
+  --bg:#000;--fg:#fff;--dim:#9a9a9a;--faint:#555;--gold:#ffd75e;--bad:#ff5e5e;--good:#7dff8a;
+  --cell:#1d1d1d;--line:#3a3a3a;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{
   background:var(--bg);color:var(--fg);
-  font-family:"Courier New",Courier,monospace;
-  font-size:14px;line-height:1.45;
-  display:flex;flex-direction:column;overflow:hidden;
-  user-select:none;
+  font-family:'VT323','Courier New',monospace;
+  font-size:20px;line-height:1.35;
+  overflow:hidden;user-select:none;
+}
+#layout{
+  display:grid;height:100vh;
+  grid-template-columns:46% 29% 25%;
+  grid-template-rows:54% 46%;
+  grid-template-areas:"map mid exec" "chron chron exec";
+}
+@media(max-width:760px){
+  body{overflow:auto}
+  #layout{display:flex;flex-direction:column;height:auto;min-height:100vh}
+  #execPane{border-left:none;border-top:2px solid var(--line)}
+}
+h2.head{
+  color:var(--gold);text-decoration:underline;font-weight:normal;
+  font-size:24px;letter-spacing:1px;margin-bottom:6px;
 }
 button{
-  background:var(--bg);color:var(--fg);border:var(--border);
-  font-family:inherit;font-size:13px;padding:6px 12px;cursor:pointer;
-  text-transform:uppercase;letter-spacing:1px;
+  background:#161616;color:var(--fg);border:1px solid #888;
+  font-family:inherit;font-size:18px;padding:2px 12px;cursor:pointer;
 }
-button:hover,button:focus-visible{background:var(--fg);color:var(--bg);outline:none}
+button:hover{border-color:#fff;background:#222}
 button:disabled{opacity:.35;cursor:default}
-button:disabled:hover{background:var(--bg);color:var(--fg)}
-button.small{padding:3px 8px;font-size:11px;border-width:1px}
+button.glow{box-shadow:0 0 18px rgba(255,225,90,.45);border-color:#ddd}
+button.yes{color:var(--good)} button.no{color:var(--dim)}
 input[type=text]{
-  background:var(--bg);color:var(--fg);border:var(--border);
-  font-family:inherit;font-size:14px;padding:6px 8px;width:100%;
+  background:#111;color:var(--fg);border:1px solid #888;
+  font-family:inherit;font-size:18px;padding:1px 6px;width:150px;
 }
-input[type=text]:focus{outline:none;border-color:var(--accent)}
-::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-track{background:#000;border-left:1px solid #333}
-::-webkit-scrollbar-thumb{background:#444}
-::-webkit-scrollbar-thumb:hover{background:#666}
+input[type=text]:focus{outline:none;border-color:var(--gold)}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-track{background:#000}
+::-webkit-scrollbar-thumb{background:#3a3a3a}::-webkit-scrollbar-thumb:hover{background:#555}
 
-/* ---------- top bar ---------- */
-#topbar{
-  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  padding:6px 10px;border-bottom:var(--border);min-height:44px;
-}
-#planetBtn{font-weight:bold;letter-spacing:2px}
-#dateLine{color:var(--dim);font-size:12px;white-space:nowrap}
-#popLine{font-size:12px;white-space:nowrap}
-#faithWrap{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px}
-.bar{width:90px;height:10px;border:1px solid #fff;position:relative;background:#000}
-.bar>i{display:block;height:100%;background:var(--fg)}
-#faithBar>i{background:var(--accent)}
+/* ---- left: map ---- */
+#mapPane{grid-area:map;display:flex;flex-direction:column;border-right:2px solid var(--line);border-bottom:2px solid var(--line)}
+#mapBox{flex:1;min-height:0;display:flex;align-items:flex-start;justify-content:center;background:#000;padding:6px}
+#map{image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;max-height:100%;cursor:pointer}
+#mapStrip{display:flex;justify-content:space-between;align-items:center;padding:4px 12px;min-height:34px}
+#planetName{color:#9fd8c8}
+#viewTag{cursor:pointer;white-space:nowrap}
+#viewTag:hover{color:var(--gold)}
 
-/* ---------- map ---------- */
-#mapwrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}
-#map{image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;max-height:100%;cursor:crosshair}
-#ticker{
-  position:absolute;left:0;right:0;bottom:0;padding:4px 10px;
-  font-size:12px;color:var(--dim);background:rgba(0,0,0,.75);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;
-}
-#viewTag{position:absolute;top:6px;right:8px;font-size:11px;color:var(--faint);pointer-events:none;text-transform:uppercase;letter-spacing:1px}
+/* ---- middle ---- */
+#midPane{grid-area:mid;display:flex;flex-direction:column;align-items:center;padding:10px 12px;border-right:2px solid var(--line);border-bottom:2px solid var(--line);overflow:hidden}
+#dayHead{color:var(--gold);text-decoration:underline;font-size:26px}
+#townsOf{color:var(--dim);margin:2px 0 8px}#townsOf b{color:#9fd8c8;font-weight:normal}
+#townRows{width:100%;overflow-y:auto;max-height:38%}
+.trow{display:flex;justify-content:space-between;gap:8px;background:var(--cell);padding:2px 12px;margin-bottom:3px;cursor:pointer}
+.trow:hover{outline:1px solid #666}
+.trow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.totRow{font-style:italic;display:flex;justify-content:center;gap:14px;padding:3px 0;width:100%}
+#faithRow{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:18px;margin-top:2px}
+#faithRow .bar{width:110px;height:10px;border:1px solid #777;background:#000}
+#faithRow .bar i{display:block;height:100%;background:var(--gold)}
+#midSpacer{flex:1}
+#nextBtn{font-size:26px;padding:8px 26px;box-shadow:0 0 28px rgba(255,225,90,.55);border:1px solid #ccc;margin-bottom:8px}
+#nextBtn:disabled{box-shadow:none}
+#speedRow{display:flex;gap:8px;margin-bottom:6px}
 
-/* ---------- controls ---------- */
-#controls{
-  display:flex;gap:8px;padding:8px 10px;border-top:var(--border);
-  flex-wrap:wrap;align-items:center;
-}
-#nextBtn{font-weight:bold;padding:10px 22px;font-size:15px}
-#promptBadge{display:none;color:#000;background:var(--accent);border-color:var(--accent);font-weight:bold}
-#promptBadge.show{display:inline-block;animation:pulse 1.2s infinite}
-@keyframes pulse{50%{opacity:.55}}
-.spacer{flex:1}
+/* ---- right: executive ---- */
+#execPane{grid-area:exec;display:flex;flex-direction:column;padding:10px 0;border-left:0;text-align:center}
+#execPane .menu{width:100%}
+.mitem{display:flex;gap:10px;padding:4px 14px;cursor:pointer;text-align:left;border-bottom:1px solid #222}
+.mitem:hover,.mitem.on{background:#3a1f10;color:var(--gold)}
+.mitem .k{color:var(--faint)}
+#execSpacer{flex:1}
 
-/* ---------- panels ---------- */
-#panel{
-  position:absolute;top:0;right:0;bottom:0;width:min(440px,100%);
-  background:var(--panel);border-left:var(--border);
-  display:none;flex-direction:column;z-index:30;
-}
-#panel.open{display:flex}
-#panelHead{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:var(--border)}
-#panelTitle{font-weight:bold;text-transform:uppercase;letter-spacing:2px;flex:1}
-#panelBody{flex:1;overflow-y:auto;padding:10px;font-size:13px}
-#panelBody h3{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--dim);margin:14px 0 6px;border-bottom:1px solid #333;padding-bottom:3px}
-#panelBody h3:first-child{margin-top:0}
-.row{display:flex;justify-content:space-between;gap:10px;padding:2px 0}
-.row .k{color:var(--dim)}
-.listItem{padding:6px 8px;border:1px solid #333;margin-bottom:6px;cursor:pointer}
-.listItem:hover{border-color:#fff}
-.listItem .sub{color:var(--dim);font-size:11px}
-.tag{display:inline-block;border:1px solid #555;padding:0 6px;font-size:11px;margin:1px 2px 1px 0;color:var(--dim)}
-.dot{display:inline-block;width:10px;height:10px;margin-right:6px;border:1px solid #fff;vertical-align:-1px}
-.chronLine{padding:3px 0;border-bottom:1px dotted #222;font-size:12px}
-.chronLine .d{color:var(--faint);margin-right:6px}
-.c-war{color:#ff8a8a}.c-tech{color:#8ad1ff}.c-faith{color:var(--accent)}.c-disaster{color:#ffb46e}
+/* ---- chronicle ---- */
+#chronPane{grid-area:chron;padding:8px 14px;overflow-y:auto;border-right:2px solid var(--line)}
+.cline{padding:4px 0;font-size:20px}
+.cline .d{color:var(--gold);margin-right:8px}
+.cline .d:before{content:'['} .cline .d:after{content:']'}
+.cline button{margin-left:8px}
+.cline input{margin-left:8px}
+.c-war{color:#ff8a8a}.c-tech{color:#8ad1ff}.c-faith{color:var(--gold)}.c-disaster{color:#ffb46e}
 .c-people{color:#d3a6ff}.c-religion{color:#ffe9a6}.c-town{color:#9fff9f}.c-trade{color:#9fd8c8}
-.c-species{color:#b6ff7d}.c-astro{color:#c8c8ff}.c-mile{color:#fff;font-weight:bold}.c-decision{color:var(--accent)}
-.filterRow{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
-.filterRow button{font-size:10px;padding:2px 6px;border-width:1px}
+.c-species{color:#b6ff7d}.c-astro{color:#c8c8ff}.c-mile{color:#fff;font-weight:bold}.c-decision{color:var(--gold)}
+.ask{color:#fff}
+.hint{color:#7dff8a}
+
+/* ---- popup ---- */
+#shade{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:40}
+#shade.open{display:flex;align-items:center;justify-content:center;padding:16px}
+#popup{
+  width:min(660px,96vw);max-height:84vh;display:flex;flex-direction:column;
+  background:rgba(16,16,16,.97);border:1px solid #888;box-shadow:0 0 40px #000;
+}
+#popHead{display:flex;align-items:center;padding:8px 14px}
+#popTitle{flex:1;text-align:center}
+#popTitle .t{font-size:24px}
+#popTitle .sub{color:var(--dim);font-style:italic;font-size:18px}
+#popClose{color:var(--bad);cursor:pointer;font-size:24px;padding:0 6px}
+#popClose:hover{color:#fff}
+#popBody{overflow-y:auto;padding:4px 22px 18px}
+.prow{display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-bottom:1px dashed #555}
+.prow .k{color:#fff}.prow .v{text-align:right}.prow .v .k{color:var(--dim)}
+.prow .none{color:var(--faint);font-style:italic}
+.tag{display:inline-block;border:1px solid #555;padding:0 7px;font-size:17px;margin:1px 2px 1px 0;color:var(--dim)}
+.dot{display:inline-block;width:11px;height:11px;margin-right:7px;border:1px solid #fff;vertical-align:-1px}
+.filterRow{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.filterRow button{font-size:15px;padding:0 7px}
 .filterRow button.on{background:#fff;color:#000}
-.miniBar{display:inline-block;width:70px;height:8px;border:1px solid #777;vertical-align:middle;margin-left:6px}
-.miniBar>i{display:block;height:100%;background:#fff}
-
-/* ---------- prompt modal ---------- */
-#shade{position:absolute;inset:0;background:rgba(0,0,0,.7);display:none;z-index:40}
-#shade.open{display:flex;align-items:center;justify-content:center;padding:14px}
-#prompt{
-  width:min(460px,100%);background:#000;border:var(--border);
-  padding:16px;box-shadow:0 0 0 4px #000,0 0 30px rgba(255,255,255,.15);
-}
-#promptTitle{font-weight:bold;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;color:var(--accent)}
-#promptBody{margin-bottom:14px;white-space:pre-wrap}
-#promptInputRow{display:none;gap:8px;margin-bottom:14px}
-#promptInputRow.show{display:flex}
-#promptBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-#promptFrom{font-size:11px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
-
-/* ---------- overlays ---------- */
-.fullOverlay{
-  position:fixed;inset:0;background:#000;z-index:50;
-  display:none;flex-direction:column;align-items:center;justify-content:center;
-  gap:18px;text-align:center;padding:20px;
-}
-.fullOverlay.open{display:flex}
-.bigTitle{font-size:clamp(28px,7vw,52px);letter-spacing:8px;font-weight:bold}
-.subTitle{color:var(--dim);letter-spacing:2px;text-transform:uppercase;font-size:12px}
-.seedRow{display:flex;gap:8px;width:min(360px,90%)}
-#overStats{font-size:13px;color:var(--dim);max-width:420px;line-height:1.8}
-#toasts{position:fixed;left:50%;top:54px;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:6px;pointer-events:none}
-.toast{background:#000;border:1px solid var(--accent);color:var(--accent);padding:6px 14px;font-size:12px;letter-spacing:1px;animation:fadeToast 4s forwards}
+.miniBar{display:inline-block;width:80px;height:9px;border:1px solid #777;vertical-align:middle;margin-left:8px}
+.miniBar i{display:block;height:100%;background:#fff}
+h3.sec{color:var(--gold);text-decoration:underline;font-weight:normal;font-size:20px;margin:12px 0 2px}
+#toasts{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:#000;border:1px solid var(--gold);color:var(--gold);padding:4px 16px;font-size:19px;animation:fadeToast 4s forwards}
 @keyframes fadeToast{0%{opacity:0;transform:translateY(-6px)}10%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
-
-@media(max-width:560px){
-  #topbar{gap:6px;padding:6px}
-  #faithWrap{margin-left:0}
-  #controls{gap:6px;padding:6px}
-  #nextBtn{flex:1}
-  body{font-size:13px}
-}
-
 </style>
 </head>
 <body>
-<div id="topbar">
-  <button id="planetBtn">WORLDSEED</button>
-  <span id="dateLine"></span>
-  <span id="popLine"></span>
-  <div id="faithWrap">FAITH <div class="bar" id="faithBar"><i style="width:72%"></i></div> <span id="faithNum">72</span></div>
-</div>
-<div id="mapwrap">
-  <canvas id="map" width="720" height="468"></canvas>
-  <div id="viewTag"></div>
-  <div id="ticker"></div>
-
-  <div id="panel">
-    <div id="panelHead"><span id="panelTitle"></span><button id="panelClose" class="small">&#10005;</button></div>
-    <div id="panelBody"></div>
+<div id="layout">
+  <div id="mapPane">
+    <div id="mapBox"><canvas id="map" width="720" height="468"></canvas></div>
+    <div id="mapStrip"><span id="planetName"></span><span id="viewTag">&#9660; Terrain</span></div>
   </div>
-
-  <div id="shade"><div id="prompt">
-    <div id="promptFrom"></div>
-    <div id="promptTitle"></div>
-    <div id="promptBody"></div>
-    <div id="promptInputRow"><input id="promptInput" type="text" maxlength="24" autocomplete="off"><button id="promptShuffle" title="another name">&#10227;</button></div>
-    <div id="promptBtns"></div>
-  </div></div>
+  <div id="midPane">
+    <div id="dayHead">Day 0</div>
+    <div id="townsOf">Towns of <b>?</b></div>
+    <div id="townRows"></div>
+    <div class="totRow" id="totRow"></div>
+    <div id="faithRow">FAITH <span class="bar"><i id="faithFill" style="width:72%"></i></span> <span id="faithNum">72</span></div>
+    <div id="midSpacer"></div>
+    <button id="nextBtn" class="glow">Next Day &#9654;</button>
+    <div id="speedRow">
+      <button id="ffBtn">&#9193; &times;10</button>
+      <button id="autoBtn">&#9654; Auto</button>
+    </div>
+  </div>
+  <div id="execPane">
+    <h2 class="head" style="text-align:center">Executive</h2>
+    <div class="menu">
+      <div class="mitem" data-pop="towns"><span class="k">[T]</span> Towns</div>
+      <div class="mitem" data-pop="tech"><span class="k">[K]</span> Knowledge</div>
+      <div class="mitem" data-pop="people"><span class="k">[P]</span> People</div>
+      <div class="mitem" data-pop="planet"><span class="k">[O]</span> Planet</div>
+      <div class="mitem" data-pop="goals"><span class="k">[G]</span> Goals</div>
+    </div>
+    <div id="execSpacer"></div>
+    <div class="menu">
+      <div class="mitem" data-pop="settings"><span class="k">[\]</span> Settings</div>
+      <div class="mitem" data-pop="saves"><span class="k">[L]</span> Saves</div>
+      <div class="mitem" data-pop="info"><span class="k">[I]</span> Info</div>
+    </div>
+  </div>
+  <div id="chronPane">
+    <h2 class="head">Chronicle</h2>
+    <div id="chronFeed"></div>
+  </div>
 </div>
-<div id="controls">
-  <button id="nextBtn">Next Day &#9654;</button>
-  <button id="ffBtn">&#9193; &times;10</button>
-  <button id="autoBtn">&#9654; AUTO</button>
-  <button id="promptBadge"></button>
-  <span class="spacer"></span>
-  <button id="townsBtn" class="small">Towns</button>
-  <button id="techBtn" class="small">Tech</button>
-  <button id="peopleBtn" class="small">People</button>
-  <button id="mileBtn" class="small">Goals</button>
-  <button id="chronBtn" class="small">Chronicle</button>
-  <button id="menuBtn" class="small">Menu</button>
-</div>
+<div id="shade"><div id="popup">
+  <div id="popHead"><span style="color:var(--faint)">&#8230;</span><div id="popTitle"></div><span id="popClose">&#10005;</span></div>
+  <div id="popBody"></div>
+</div></div>
 <div id="toasts"></div>
-
-<div class="fullOverlay open" id="titleOverlay">
-  <div class="bigTitle">WORLDSEED</div>
-  <div class="subTitle">guide a civilization &mdash; indirectly</div>
-  <div class="seedRow"><input id="seedInput" type="text" maxlength="24" placeholder="seed" autocomplete="off"><button id="seedShuffle">&#10227;</button></div>
-  <button id="beginBtn">Begin</button>
-  <div class="subTitle" style="max-width:440px">towns live on their own &middot; they will ask for your counsel &middot; their faith in you is everything &middot; the same seed always grows the same planet</div>
-</div>
-
-<div class="fullOverlay" id="overOverlay">
-  <div class="bigTitle" id="overTitle"></div>
-  <div id="overStats"></div>
-  <button id="againBtn">New World</button>
-</div>
-
+<div id="ticker" style="display:none"></div>
 <script>
-/* ============================================================
-   WORLDSEED — an original, from-scratch civilization simulator.
-   You are the Voice: guide autonomous towns indirectly, through
-   prompts. All code, text and art generated originally.
-   ============================================================ */
 'use strict';
 const HAS_DOM = (typeof document !== 'undefined' && typeof window !== 'undefined');
 
@@ -286,17 +261,17 @@ const NG = {
 const W = 120, H = 78, SCALE = 6;
 const T = {DEEP:0,OCEAN:1,COAST:2,GRASS:3,FOREST:4,HILLS:5,MOUNT:6,DESERT:7,SNOW:8,DRY:9,ASH:10};
 const TINFO = [
-  {n:'Deep Sea', col:[10,34,66],   land:false, fert:0},
-  {n:'Sea',      col:[18,62,110],  land:false, fert:0},
-  {n:'Coast',    col:[201,180,106],land:true,  fert:.55},
-  {n:'Plains',   col:[62,122,62],  land:true,  fert:1.0},
-  {n:'Forest',   col:[40,86,44],   land:true,  fert:.8},
-  {n:'Hills',    col:[110,106,90], land:true,  fert:.5},
-  {n:'Mountains',col:[138,138,138],land:true,  fert:.12},
-  {n:'Desert',   col:[194,163,90], land:true,  fert:.15},
-  {n:'Snow',     col:[223,232,239],land:true,  fert:.12},
-  {n:'Dry Plains',col:[138,138,74],land:true,  fert:.4},
-  {n:'Ashlands', col:[58,52,50],   land:true,  fert:.05},
+  {n:'Deep Sea', col:[86,140,205], land:false, fert:0},
+  {n:'Sea',      col:[150,196,238],land:false, fert:0},
+  {n:'Coast',    col:[226,209,148],land:true,  fert:.55},
+  {n:'Plains',   col:[96,190,72],  land:true,  fert:1.0},
+  {n:'Forest',   col:[48,138,54],  land:true,  fert:.8},
+  {n:'Hills',    col:[168,138,96], land:true,  fert:.5},
+  {n:'Mountains',col:[158,158,158],land:true,  fert:.12},
+  {n:'Desert',   col:[228,206,104],land:true,  fert:.15},
+  {n:'Snow',     col:[240,245,250],land:true,  fert:.12},
+  {n:'Dry Plains',col:[186,186,96],land:true,  fert:.4},
+  {n:'Ashlands', col:[88,80,76],   land:true,  fert:.05},
 ];
 const SEASONS = ['Spring','Summer','Autumn','Winter'];
 const SEASON_LEN = 30, YEAR = 120;
@@ -1863,7 +1838,7 @@ function faithTick(){
   G.faith = ts.length ? ts.reduce((s,t)=>s+t.faith*popOf(t),0)/Math.max(tp,1) : 0;
 }
 function checkEnd(){
-  if(G.over) return;
+  if(G.over || G.pendingSettle || !G.towns.length) return;
   if(worldPop() < 1){
     G.over = {kind:'extinct', day:G.day};
     chron('No hearth burns anywhere on '+G.planetName+'. The world falls silent.', 'mile');
@@ -1900,20 +1875,28 @@ function newGame(seedStr){
     viewMode:'terrain',
   };
   G.species = genSpeciesPool();
-  const spot = findSettleSpot(G.tiles, G.fert, null, 0, 0);
-  const t0 = newTown(spot>=0 ? spot : (Math.floor(H/2)*W + Math.floor(W/2)));
+  if(HAS_DOM){
+    G.pendingSettle = true;
+  } else {
+    const spot = findSettleSpot(G.tiles, G.fert, null, 0, 0);
+    settleFirst(spot>=0 ? spot : (Math.floor(H/2)*W + Math.floor(W/2)));
+  }
+}
+function settleFirst(idx){
+  G.pendingSettle = false;
+  const t0 = newTown(idx);
   chron('A handful of people raise the first roofs of '+t0.name+'.', 'town', t0.id);
   chron('You are the Voice. They will ask; you may answer. Their faith is everything.', 'faith');
   queuePrompt({kind:'name_planet', input:true, suggest:NG.planet(),
     title:'A world, unnamed',
     body:'The people of '+t0.name+' look out from their hilltop and wonder what to call the ground beneath them. The Voice may decide.',
     options:['So be it']});
-  if(HAS_DOM){ render(); UI.updateHUD(); UI.maybeShowPrompt(); }
+  return t0;
 }
 
 function nextDay(n){
   n = n||1;
-  if(!G || G.over) return;
+  if(!G || G.over || G.pendingSettle) return;
   for(let step=0; step<n; step++){
     if(G.over) break;
     if(step>0 && G.prompts.length) break; // fast-forward pauses when the people ask
@@ -2040,207 +2023,258 @@ function render(){
     ctx.strokeRect(sel.cap[0]*S-5, sel.cap[1]*S-5, S+10, S+10);
     ctx.setLineDash([]);
   }
-  document.getElementById('ticker').textContent = G.lastLine ? ('Day '+G.day+' — '+G.lastLine) : '';
-  document.getElementById('viewTag').textContent = G.viewMode;
 }
 
 /* ============================================================
-   UI LAYER
+   UI LAYER — GenTown-style dashboard: map / day column /
+   executive menu / inline chronicle prompts.
    ============================================================ */
 const $ = id => HAS_DOM ? document.getElementById(id) : null;
 function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const POP_E='\u{1F642}', SIZE_E='▢';
 
 const UI = {
-  selectedTown:null, panelKind:null, chronFilter:'all',
-  autoTimer:null, autoSpeed:700, current:null, memSaves:{},
+  selectedTown:null, popKind:null, chronFilter:'all',
+  autoTimer:null, autoSpeed:700, memSaves:{},
 
   init(){
     $('nextBtn').addEventListener('click', ()=>this.step(1));
     $('ffBtn').addEventListener('click', ()=>this.step(10));
     $('autoBtn').addEventListener('click', ()=>this.toggleAuto());
-    $('promptBadge').addEventListener('click', ()=>this.maybeShowPrompt());
-    $('planetBtn').addEventListener('click', ()=>this.togglePanel('planet'));
-    $('townsBtn').addEventListener('click', ()=>this.togglePanel('towns'));
-    $('techBtn').addEventListener('click', ()=>this.togglePanel('tech'));
-    $('peopleBtn').addEventListener('click', ()=>this.togglePanel('people'));
-    $('mileBtn').addEventListener('click', ()=>this.togglePanel('goals'));
-    $('chronBtn').addEventListener('click', ()=>this.togglePanel('chron'));
-    $('menuBtn').addEventListener('click', ()=>this.togglePanel('menu'));
-    $('panelClose').addEventListener('click', ()=>this.closePanel());
-    $('promptShuffle').addEventListener('click', ()=>{ if(this.current) $('promptInput').value = this.freshSuggest(this.current); });
-    $('seedShuffle').addEventListener('click', ()=>{ $('seedInput').value = this.randSeed(); });
-    $('beginBtn').addEventListener('click', ()=>this.begin());
-    $('againBtn').addEventListener('click', ()=>{ $('overOverlay').classList.remove('open'); $('seedInput').value=this.randSeed(); $('titleOverlay').classList.add('open'); });
-    $('map').addEventListener('click', e=>this.pickTown(e));
-    $('panelBody').addEventListener('click', e=>{
-      const tw = e.target.closest('[data-town]');
-      if(tw){ this.selectedTown = +tw.dataset.town; this.openPanel('town'); render(); return; }
-      const a = e.target.closest('[data-act]');
+    $('popClose').addEventListener('click', ()=>this.closePop());
+    $('shade').addEventListener('click', e=>{ if(e.target===$('shade')) this.closePop(); });
+    $('viewTag').addEventListener('click', ()=>this.cycleView());
+    $('map').addEventListener('click', e=>this.mapClick(e));
+    document.querySelectorAll('.mitem').forEach(el=>
+      el.addEventListener('click', ()=>this.togglePop(el.dataset.pop)));
+    $('townRows').addEventListener('click', e=>{
+      const r=e.target.closest('[data-town]'); if(r){ this.selectedTown=+r.dataset.town; this.openPop('town'); render(); }
+    });
+    $('chronFeed').addEventListener('click', e=>this.chronClick(e));
+    $('popBody').addEventListener('click', e=>{
+      const tw=e.target.closest('[data-town]');
+      if(tw){ this.selectedTown=+tw.dataset.town; this.openPop('town'); render(); return; }
+      const a=e.target.closest('[data-act]');
       if(a) this.action(a.dataset.act, a.dataset.arg);
     });
-    $('promptInput').addEventListener('keydown', e=>{ if(e.key==='Enter') this.resolveCurrent(0); });
-    $('seedInput').addEventListener('keydown', e=>{ if(e.key==='Enter') this.begin(); });
-    $('seedInput').value = this.randSeed();
+    document.addEventListener('keydown', e=>{
+      if(e.target.tagName==='INPUT') return;
+      const k=e.key.toLowerCase();
+      if(k==='escape'){ this.closePop(); return; }
+      if(k==='n'||k===' '){ e.preventDefault(); this.step(1); }
+      else if(k==='t') this.togglePop('towns');
+      else if(k==='k') this.togglePop('tech');
+      else if(k==='p') this.togglePop('people');
+      else if(k==='o') this.togglePop('planet');
+      else if(k==='g') this.togglePop('goals');
+      else if(k==='l') this.togglePop('saves');
+      else if(k==='i') this.togglePop('info');
+      else if(k==='\\') this.togglePop('settings');
+    });
   },
   randSeed(){
     const a='abcdefghijkmnopqrstuvwxyz';
     let s=''; for(let i=0;i<4;i++) s+=a[Math.floor(Math.random()*a.length)];
     return s + Math.floor(Math.random()*900+100);
   },
-  begin(){
-    const s = $('seedInput').value;
-    $('titleOverlay').classList.remove('open');
-    $('overOverlay').classList.remove('open');
-    this.selectedTown=null; this.closePanel(); this.stopAuto(); this.current=null;
-    newGame(s);
+  cycleView(){
+    const modes=['terrain','political','fertility'];
+    G.viewMode = modes[(modes.indexOf(G.viewMode)+1)%modes.length];
+    G.terrainDirty=true; render();
   },
   step(n){
-    if(!G || G.over) return;
-    if($('shade').classList.contains('open')) return;
+    if(!G || G.over || G.pendingSettle) return;
     nextDay(n);
   },
   toggleAuto(){
     if(this.autoTimer){ this.stopAuto(); return; }
-    this.autoTimer = setInterval(()=>{
-      if(!G || G.over){ this.stopAuto(); return; }
-      if($('shade').classList.contains('open')) return;
+    if(!G || G.over || G.pendingSettle) return;
+    this.autoTimer=setInterval(()=>{
+      if(!G||G.over){ this.stopAuto(); return; }
       nextDay(1);
     }, this.autoSpeed);
-    $('autoBtn').textContent='⏸ AUTO';
+    $('autoBtn').innerHTML='&#9208; Auto';
   },
   stopAuto(){
     if(this.autoTimer){ clearInterval(this.autoTimer); this.autoTimer=null; }
-    if(HAS_DOM && $('autoBtn')) $('autoBtn').textContent='▶ AUTO';
-  },
-  updateHUD(){
-    if(!G) return;
-    $('planetBtn').textContent = G.planetName.toUpperCase();
-    $('dateLine').textContent = 'Day '+G.day+' · '+SEASONS[G.season]+' · Year '+yearOf();
-    $('popLine').textContent = aliveTowns().length+' towns · pop '+Math.round(worldPop());
-    const bar = $('faithBar').firstElementChild;
-    bar.style.width = clamp(G.faith,0,100)+'%';
-    bar.style.background = G.faith<25 ? '#ff5e5e' : '#ffd75e';
-    $('faithNum').textContent = Math.round(G.faith);
-    const n = G.prompts.length, open = $('shade').classList.contains('open');
-    const b = $('promptBadge');
-    if(n>0 && !open){ b.textContent = '! '+n+' AWAITING'; b.classList.add('show'); }
-    else b.classList.remove('show');
+    if(HAS_DOM && $('autoBtn')) $('autoBtn').innerHTML='&#9654; Auto';
   },
 
-  /* ---- prompt modal ---- */
-  maybeShowPrompt(){
-    if(!G || G.over) return;
-    if($('shade').classList.contains('open')) return;
-    if(!G.prompts.length){ this.updateHUD(); return; }
-    this.showPrompt(G.prompts[0]);
+  updateHUD(){
+    if(!G) return;
+    $('dayHead').textContent='Day '+G.day;
+    $('planetName').textContent=G.planetName;
+    $('townsOf').innerHTML='Towns of <b>'+esc(G.planetName)+'</b>';
+    const ts=aliveTowns().slice().sort((a,b)=>popOf(b)-popOf(a));
+    let rows='';
+    for(const t of ts.slice(0,14)){
+      rows+='<div class="trow" data-town="'+t.id+'">'
+        +'<span class="nm" style="color:hsl('+hueOf(t)+',75%,65%)">'+esc(t.name)+'</span>'
+        +'<span>'+POP_E+Math.round(popOf(t))+' &nbsp;<span style="color:#8ad1ff">'+SIZE_E+'</span>'+t.tiles.length+'</span></div>';
+    }
+    if(ts.length>14) rows+='<div class="trow" data-pop="towns" style="justify-content:center;color:#888">&#8230; '+(ts.length-14)+' more</div>';
+    $('townRows').innerHTML=rows;
+    $('totRow').innerHTML = G.pendingSettle ? '' : '<span>Total</span><span>'+POP_E+Math.round(worldPop())+'</span>';
+    $('faithFill').style.width=clamp(G.faith,0,100)+'%';
+    $('faithFill').style.background=G.faith<25?'#ff5e5e':'#ffd75e';
+    $('faithNum').textContent=Math.round(G.faith);
+    $('nextBtn').disabled=!!(G.pendingSettle||G.over);
+    $('viewTag').textContent='▼ '+G.viewMode.charAt(0).toUpperCase()+G.viewMode.slice(1);
   },
-  showPrompt(p){
-    this.current = p;
-    const t = p.townId!==undefined ? townById(p.townId) : null;
-    $('promptFrom').textContent = t ? ('From '+t.name) : 'From the world';
-    $('promptTitle').textContent = p.title || '…';
-    $('promptBody').textContent = p.body || '';
-    const ir = $('promptInputRow');
-    if(p.input){ ir.classList.add('show'); $('promptInput').value = p.value || p.suggest || this.freshSuggest(p); }
-    else { ir.classList.remove('show'); }
-    const btns = $('promptBtns'); btns.innerHTML='';
-    (p.options||['So be it']).forEach((label,i)=>{
-      const b=document.createElement('button');
-      b.textContent = label;
-      b.addEventListener('click', ()=>this.resolveCurrent(i));
-      btns.appendChild(b);
-    });
-    const later=document.createElement('button');
-    later.textContent='Later'; later.className='small';
-    later.addEventListener('click', ()=>{
-      if(this.current && this.current.input) this.current.value = $('promptInput').value;
-      this.current=null;
-      $('shade').classList.remove('open');
-      this.updateHUD();
-    });
-    btns.appendChild(later);
-    $('shade').classList.add('open');
-    this.updateHUD();
+
+  /* ---- chronicle: events + inline prompts ---- */
+  maybeShowPrompt(){ this.renderChron(); this.updateHUD(); },
+  renderChron(){
+    if(!G) return;
+    let h='';
+    if(G.pendingSettle){
+      h+='<div class="cline"><span class="hint">(?)</span> Tap the map to found your first town. <button data-cact="regen">Regenerate</button></div>';
+    }
+    for(const p of G.prompts){
+      h+='<div class="cline ask"><span class="d">'+p.day+'</span><b style="color:var(--gold)">'+esc(p.title||'A question')+'</b> '
+        +esc(p.body||'');
+      if(p.input){
+        h+=' <input type="text" maxlength="24" id="pin_'+p.id+'" value="'+esc(p.value||p.suggest||'')+'">'
+          +' <button data-prompt="'+p.id+'" data-shuf="1">&#10227;</button>';
+      }
+      (p.options||['So be it']).forEach((label,i)=>{
+        const cls = (p.options&&p.options.length===2) ? (i===0?'yes':'no') : 'yes';
+        h+=' <button class="'+cls+'" data-prompt="'+p.id+'" data-choice="'+i+'">'+esc(label)+'</button>';
+      });
+      h+='</div>';
+    }
+    let shown=0;
+    for(let i=G.chron.length-1;i>=0&&shown<120;i--){
+      const c=G.chron[i];
+      h+='<div class="cline c-'+c.t+'"><span class="d">'+c.d+'</span>'+esc(c.m)+'</div>';
+      shown++;
+    }
+    $('chronFeed').innerHTML=h;
+  },
+  chronClick(e){
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.cact==='regen'){ this.newWorld(this.randSeed()); return; }
+    const pid=+b.dataset.prompt;
+    const p=G.prompts.find(x=>x.id===pid); if(!p) return;
+    if(b.dataset.shuf){ const inp=$('pin_'+pid); if(inp) inp.value=this.freshSuggest(p); return; }
+    const inp=$('pin_'+pid);
+    const k=G.prompts.indexOf(p); if(k>=0) G.prompts.splice(k,1);
+    resolvePrompt(p, +b.dataset.choice, inp?inp.value:null);
+    this.renderChron(); this.updateHUD(); render(); this.refreshPanel();
   },
   freshSuggest(p){
     if(p.kind==='name_species' && G.species[p.args.spIdx]) return NG.species(G.species[p.args.spIdx].kind);
     if(p.kind==='name_star'||p.kind==='name_craft') return NG.star();
-    if(p.kind==='name_offworld') return NG.town();
-    if(p.kind==='name_town') return NG.town();
+    if(p.kind==='name_offworld'||p.kind==='name_town') return NG.town();
     return NG.planet();
   },
-  resolveCurrent(i){
-    const p=this.current; if(!p) return;
-    const k=G.prompts.indexOf(p); if(k>=0) G.prompts.splice(k,1);
-    this.current=null;
-    $('shade').classList.remove('open');
-    resolvePrompt(p, i, $('promptInput').value);
-    this.updateHUD(); render(); this.refreshPanel();
-    this.maybeShowPrompt();
+
+  /* ---- map ---- */
+  mapClick(e){
+    if(!G) return;
+    const r=$('map').getBoundingClientRect();
+    const tx=Math.floor((e.clientX-r.left)/r.width*W);
+    const ty=Math.floor((e.clientY-r.top)/r.height*H);
+    if(tx<0||ty<0||tx>=W||ty>=H) return;
+    if(G.pendingSettle){ this.settleAt(tx,ty); return; }
+    let id=G.TO[ty*W+tx];
+    if(id!==-1){ const t=townById(id); if(!t||t.dead) id=-1; }
+    if(id===-1){
+      let bd=6;
+      for(const t of aliveTowns()){
+        const d=Math.hypot(t.cap[0]-tx,t.cap[1]-ty);
+        if(d<bd){ bd=d; id=t.id; }
+      }
+    }
+    if(id!==-1){ this.selectedTown=id; this.openPop('town'); render(); }
+  },
+  settleAt(tx,ty){
+    let best=-1,bd=1e9;
+    for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){
+      const x=tx+dx,y=ty+dy;
+      if(x<1||y<1||x>=W-1||y>=H-1) continue;
+      const i=y*W+x,t=G.tiles[i];
+      if(t!==T.GRASS&&t!==T.FOREST&&t!==T.COAST) continue;
+      const d=dx*dx+dy*dy - G.fert[i]*6;
+      if(d<bd){ bd=d; best=i; }
+    }
+    if(best<0){ this.toast('No fertile ground there — try elsewhere'); return; }
+    settleFirst(best);
+    this.renderChron(); this.updateHUD(); render();
+  },
+  newWorld(seed){
+    this.stopAuto(); this.closePop(); this.selectedTown=null;
+    newGame(seed||this.randSeed());
+    this.renderChron(); this.updateHUD(); render();
   },
 
-  /* ---- side panel ---- */
-  togglePanel(kind){
-    if(this.panelKind===kind && $('panel').classList.contains('open')) this.closePanel();
-    else this.openPanel(kind);
+  /* ---- popups ---- */
+  togglePop(kind){
+    if(this.popKind===kind && $('shade').classList.contains('open')) this.closePop();
+    else this.openPop(kind);
   },
-  openPanel(kind){ this.panelKind=kind; $('panel').classList.add('open'); this.refreshPanel(); },
-  closePanel(){ if(HAS_DOM&&$('panel')) $('panel').classList.remove('open'); this.panelKind=null; },
+  openPop(kind){
+    this.popKind=kind;
+    $('shade').classList.add('open');
+    document.querySelectorAll('.mitem').forEach(el=>el.classList.toggle('on', el.dataset.pop===kind));
+    this.refreshPanel();
+  },
+  closePop(){
+    if(HAS_DOM&&$('shade')) $('shade').classList.remove('open');
+    this.popKind=null;
+    document.querySelectorAll('.mitem').forEach(el=>el.classList.remove('on'));
+  },
   refreshPanel(){
-    if(!G || !this.panelKind || !$('panel').classList.contains('open')) return;
-    const k=this.panelKind;
-    let title='', html='';
+    if(!G||!this.popKind||!$('shade').classList.contains('open')) return;
+    const k=this.popKind;
+    let title='',sub='',html='';
     if(k==='town'){
-      const t = this.selectedTown!=null ? townById(this.selectedTown) : null;
-      if(!t){ this.panelKind='towns'; return this.refreshPanel(); }
-      title=t.name; html=this.townHTML(t);
+      const t=this.selectedTown!=null?townById(this.selectedTown):null;
+      if(!t){ this.popKind='towns'; return this.refreshPanel(); }
+      title='<span style="color:hsl('+hueOf(t)+',75%,65%)">'+esc(t.name)+'</span>'; sub='Town'; html=this.townHTML(t);
     }
-    else if(k==='towns'){ title='Towns'; html=this.townsHTML(); }
-    else if(k==='tech'){ title='Knowledge'; html=this.techHTML(); }
-    else if(k==='people'){ title='People'; html=this.peopleHTML(); }
-    else if(k==='planet'){ title='Planet'; html=this.planetHTML(); }
-    else if(k==='goals'){ title='Milestones'; html=this.goalsHTML(); }
-    else if(k==='chron'){ title='Chronicle'; html=this.chronHTML(); }
-    else if(k==='menu'){ title='Menu'; html=this.menuHTML(); }
-    $('panelTitle').textContent=title;
-    $('panelBody').innerHTML=html;
+    else if(k==='towns'){ title='Towns'; sub='of '+esc(G.planetName); html=this.townsHTML(); }
+    else if(k==='tech'){ title='Knowledge'; sub='what the world has learned'; html=this.techHTML(); }
+    else if(k==='people'){ title='People'; sub='names worth remembering'; html=this.peopleHTML(); }
+    else if(k==='planet'){ title=esc(G.planetName); sub='Planet'; html=this.planetHTML(); }
+    else if(k==='goals'){ title='Goals'; sub='milestones of a civilization'; html=this.goalsHTML(); }
+    else if(k==='settings'){ title='Settings'; sub=''; html=this.settingsHTML(); }
+    else if(k==='saves'){ title='Saves'; sub='three slots'; html=this.savesHTML(); }
+    else if(k==='info'){ title='Info'; sub='how to play'; html=this.infoHTML(); }
+    else if(k==='over'){ title=$('popTitle').dataset.overTitle||'The End'; sub=''; html=this.overHTML(); }
+    $('popTitle').innerHTML='<div class="t">'+title+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'');
+    $('popBody').innerHTML=html;
   },
-  row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span>'+v+'</span></div>'; },
-  barRow(k,val,col){
-    return '<div class="row"><span class="k">'+k+'</span><span>'+Math.round(val)
-      +'<span class="miniBar"><i style="width:'+clamp(val,0,100)+'%;background:'+(col||'#fff')+'"></i></span></span></div>';
-  },
+  prow(k,v){ return '<div class="prow"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; },
+  bar(val,col){ return Math.round(val)+'<span class="miniBar"><i style="width:'+clamp(val,0,100)+'%;background:'+(col||'#fff')+'"></i></span>'; },
   cultureTags(t){
-    const c=t.culture, tags=[];
+    const c=t.culture,tags=[];
     if(c.mil>.25)tags.push('martial'); if(c.mil<-.25)tags.push('peaceable');
     if(c.spi>.3)tags.push('devout');   if(c.spi<-.3)tags.push('worldly');
     if(c.ope>.3)tags.push('open');     if(c.ope<-.3)tags.push('insular');
     if(c.tra>.3)tags.push('tradition-bound'); if(c.tra<-.3)tags.push('restless');
-    return tags.length ? tags.map(x=>'<span class="tag">'+x+'</span>').join('') : '<span class="tag">unremarkable</span>';
+    return tags.length?tags.map(x=>'<span class="tag">'+x+'</span>').join(''):'<span class="none">unremarkable</span>';
   },
   townHTML(t){
-    const dot='<span class="dot" style="background:hsl('+hueOf(t)+',72%,55%)"></span>';
-    let h='<h3>'+dot+esc(t.name)+(t.dead?' — fallen':'')+'</h3>';
-    if(t.dead) return h + this.row('Fell on day', t.diedDay);
+    if(t.dead) return this.prow('Fell on day', t.diedDay);
     const ldr=personById(t.leader);
-    h+=this.row('Population', Math.round(popOf(t))+' <span class="k">('+Math.round(t.pop.c)+' young · '+Math.round(t.pop.w)+' workers · '+Math.round(t.pop.e)+' elders)</span>');
-    h+=this.row('Era', esc(ERAS[t.era]));
-    if(ldr&&ldr.alive) h+=this.row('Leader', esc(personLabel(ldr)));
-    h+=this.barRow('Happiness', t.happiness);
-    h+=this.barRow('Faith in you', t.faith, '#ffd75e');
-    h+=this.barRow('Morale', t.morale);
-    h+='<h3>Stores</h3>';
-    h+=this.row('Food', Math.round(t.res.food));
-    h+=this.row('Wood / Stone / Metal', Math.round(t.res.wood)+' / '+Math.round(t.res.stone)+' / '+Math.round(t.res.metal));
-    h+=this.row('Knowledge', Math.round(t.res.know)+(t.research?(' <span class="k">→ '+esc(TECHS[t.research].name)+'</span>'):''));
-    h+='<h3>Society</h3>';
-    h+='<div style="margin:4px 0">'+this.cultureTags(t)+'</div>';
-    h+=this.row('Religion', t.religion!==null ? esc(religionById(t.religion).name) : '—');
-    h+=this.row('Trade routes', routeCount(t));
+    let h='';
+    h+=this.prow('Population', Math.round(popOf(t))+POP_E+' <span class="k" style="color:var(--dim)">'+Math.round(t.pop.c)+' young / '+Math.round(t.pop.w)+' workers / '+Math.round(t.pop.e)+' elders</span>');
+    h+=this.prow('Resources', Math.round(t.res.food)+' food / '+Math.round(t.res.wood)+' wood / '+Math.round(t.res.stone)+' stone / '+Math.round(t.res.metal)+' metal');
+    h+=this.prow('Knowledge', Math.round(t.res.know)+(t.research?(' <span style="color:#8ad1ff">&rarr; '+esc(TECHS[t.research].name)+'</span>'):''));
+    h+=this.prow('Size', t.tiles.length+' <span style="color:#8ad1ff">'+SIZE_E+'</span>');
+    h+=this.prow('Era', esc(ERAS[t.era]));
+    if(ldr&&ldr.alive) h+=this.prow('Leader', esc(personLabel(ldr)));
+    h+=this.prow('Happiness', this.bar(t.happiness));
+    h+=this.prow('Faith in you', this.bar(t.faith,'#ffd75e'));
+    h+=this.prow('Morale', this.bar(t.morale));
+    h+=this.prow('Influences', this.cultureTags(t));
+    h+=this.prow('Religion', t.religion!==null?esc(religionById(t.religion).name):'<span class="none">None yet..</span>');
+    h+=this.prow('Trade routes', routeCount(t)||'<span class="none">None yet..</span>');
     const w=warOf(t);
     if(w){
       const o=townById(w.a===t.id?w.b:w.a);
-      h+=this.row('<span class="c-war">At war</span>', 'vs '+esc(o?o.name:'?')+' · exhaustion '+Math.round(w.a===t.id?w.exA:w.exB));
+      h+=this.prow('<span class="c-war">At war</span>', 'vs '+esc(o?o.name:'?')+' — exhaustion '+Math.round(w.a===t.id?w.exA:w.exB));
     }
     const tags=[];
     if(t.starvingDays>0)tags.push('<span class="tag c-disaster">starving</span>');
@@ -2251,148 +2285,156 @@ const UI = {
     if(t.flags.temple)tags.push('<span class="tag">temple</span>');
     if(t.flags.rationUntil>G.day)tags.push('<span class="tag">rationing</span>');
     if(G.day<t.protectedUntil)tags.push('<span class="tag">young colony</span>');
-    if(tags.length) h+='<div style="margin:4px 0">'+tags.join('')+'</div>';
+    if(tags.length) h+=this.prow('Status', tags.join(''));
+    h+=this.prow('Founded', 'Day '+t.foundedDay);
     const rels=aliveTowns().filter(o=>o.id!==t.id)
       .map(o=>({o,r:getRel(t.id,o.id)}))
       .sort((a,b)=>Math.abs(b.r)-Math.abs(a.r)).slice(0,6);
     if(rels.length){
-      h+='<h3>Relations</h3>';
+      h+='<h3 class="sec">Relations</h3>';
       for(const {o,r} of rels){
-        const col = r>20?'#7dff8a':(r<-20?'#ff8a8a':'#aaa');
-        h+='<div class="row"><span data-town="'+o.id+'" style="cursor:pointer;text-decoration:underline dotted">'+esc(o.name)+'</span><span style="color:'+col+'">'+(r>0?'+':'')+Math.round(r)+'</span></div>';
+        const col=r>20?'#7dff8a':(r<-20?'#ff8a8a':'#aaa');
+        h+='<div class="prow"><span data-town="'+o.id+'" style="cursor:pointer;text-decoration:underline dotted;color:hsl('+hueOf(o)+',75%,65%)">'+esc(o.name)+'</span><span style="color:'+col+'">'+(r>0?'+':'')+Math.round(r)+'</span></div>';
       }
     }
     if(t.memory.length){
-      h+='<h3>They remember</h3>';
-      for(const m of t.memory) h+='<div class="chronLine">'+esc(m)+'</div>';
+      h+='<h3 class="sec">They remember</h3>';
+      for(const m of t.memory) h+='<div class="cline">'+esc(m)+'</div>';
     }
     return h;
   },
   townsHTML(){
     const ts=aliveTowns().slice().sort((a,b)=>popOf(b)-popOf(a));
-    if(!ts.length) return '<div class="k">No towns remain.</div>';
+    if(!ts.length) return '<div class="none">No towns remain.</div>';
     let h='';
     for(const t of ts){
       const tags=[];
       if(warOf(t))tags.push('<span class="tag c-war">war</span>');
       if(t.plague)tags.push('<span class="tag c-disaster">plague</span>');
       if(t.starvingDays>0)tags.push('<span class="tag c-disaster">hunger</span>');
-      h+='<div class="listItem" data-town="'+t.id+'">'
-        +'<span class="dot" style="background:hsl('+hueOf(t)+',72%,55%)"></span><b>'+esc(t.name)+'</b> '
-        +'<span class="sub">pop '+Math.round(popOf(t))+' · '+esc(ERAS[t.era])+' · faith '+Math.round(t.faith)+'</span> '
-        +tags.join('')+'</div>';
+      h+='<div class="prow" data-town="'+t.id+'" style="cursor:pointer"><span><span class="dot" style="background:hsl('+hueOf(t)+',72%,55%)"></span>'+esc(t.name)+' '+tags.join('')+'</span>'
+        +'<span class="v">'+POP_E+Math.round(popOf(t))+' &nbsp;<span style="color:#8ad1ff">'+SIZE_E+'</span>'+t.tiles.length+' &nbsp;<span style="color:var(--dim)">faith '+Math.round(t.faith)+'</span></span></div>';
     }
     const dead=G.towns.filter(t=>t.dead);
     if(dead.length){
-      h+='<h3>Fallen</h3>';
-      for(const t of dead) h+=this.row(esc(t.name), 'day '+t.diedDay);
+      h+='<h3 class="sec">Fallen</h3>';
+      for(const t of dead) h+=this.prow(esc(t.name),'day '+t.diedDay);
     }
     return h;
   },
   techHTML(){
     const ts=aliveTowns(); let h='';
     for(let e=0;e<ERAS.length;e++){
-      h+='<h3>'+ERAS[e]+'</h3>';
+      h+='<h3 class="sec">'+ERAS[e]+'</h3>';
       for(const id of TECH_IDS){
         const tc=TECHS[id]; if(tc.era!==e) continue;
         const owners=ts.filter(t=>t.techs[id]).length;
-        h+='<div class="row"><span'+(owners?'':' class="k"')+'>'+tc.name+'</span><span class="k">'+(owners? owners+'/'+ts.length : '—')+'</span></div>';
-        h+='<div class="sub" style="color:#777;margin:-2px 0 5px">'+tc.desc+'</div>';
+        h+='<div class="prow"><span'+(owners?'':' style="color:var(--faint)"')+'>'+tc.name+' <span style="color:#666;font-size:17px">'+tc.desc+'</span></span><span class="v" style="color:var(--dim)">'+(owners?owners+'/'+ts.length:'&mdash;')+'</span></div>';
       }
     }
     return h;
   },
   peopleHTML(){
     const alive=G.people.filter(p=>p.alive&&(p.role==='leader'||p.fame>=1));
-    let h='<h3>Living</h3>';
-    if(!alive.length) h+='<div class="k">No one of note.</div>';
+    let h='<h3 class="sec">Living</h3>';
+    if(!alive.length) h+='<div class="none">No one of note.</div>';
     for(const p of alive){
       const t=townById(p.townId);
-      h+='<div class="row"><span>'+esc(personLabel(p))+' <span class="k">'+p.role+'</span></span><span class="k">'+(t?esc(t.name):'?')+' · age '+(G.day-p.born)+'</span></div>';
+      h+=this.prow(esc(personLabel(p))+' <span style="color:var(--faint)">'+p.role+'</span>', (t?esc(t.name):'?')+' &middot; age '+(G.day-p.born));
     }
     const legends=G.people.filter(p=>!p.alive&&p.fame>=3);
     if(legends.length){
-      h+='<h3>Legends</h3>';
-      for(const p of legends) h+='<div class="row"><span>'+esc(personLabel(p))+'</span><span class="k">'+esc(p.deeds[0]||p.role)+'</span></div>';
+      h+='<h3 class="sec">Legends</h3>';
+      for(const p of legends) h+=this.prow(esc(personLabel(p)), esc(p.deeds[0]||p.role));
     }
     return h;
   },
   planetHTML(){
     let land=0; for(let i=0;i<W*H;i++) if(TINFO[G.tiles[i]].land) land++;
     let h='';
-    h+=this.row('World', esc(G.planetName));
-    h+=this.row('Star', G.starName ? esc(G.starName) : '<span class="k">unnamed — awaits astronomy</span>');
-    h+=this.row('Date', 'Day '+G.day+' · Year '+yearOf());
-    h+=this.row('Seed', '<span style="user-select:text">'+esc(G.seedStr)+'</span>');
-    h+=this.row('Land', Math.round(land/(W*H)*100)+'%');
-    h+=this.row('Towns risen / fallen', G.townSeq+' / '+G.stats.townsFallen);
-    if(G.space && (G.space.stage>0 || aliveTowns().some(t=>t.techs.spaceflight))){
+    h+=this.prow('Star', G.starName?esc(G.starName):'<span class="none">unnamed — awaits astronomy</span>');
+    h+=this.prow('Date', 'Day '+G.day+' &middot; '+SEASONS[G.season]+' &middot; Year '+yearOf());
+    h+=this.prow('Seed', '<span style="user-select:text">'+esc(G.seedStr)+'</span>');
+    h+=this.prow('Land', Math.round(land/(W*H)*100)+'%');
+    h+=this.prow('Towns risen / fallen', G.townSeq+' / '+G.stats.townsFallen);
+    if(G.space&&(G.space.stage>0||aliveTowns().some(t=>t.techs.spaceflight))){
       const stages=['preparing a launch','in orbit','footfall achieved','a second world settled'];
-      h+=this.row('Space program', stages[G.space.stage]||'—');
+      h+=this.prow('Space program', stages[G.space.stage]||'&mdash;');
     }
-    if(G.offworld) h+=this.row('Offworld colony', esc(G.offworld.name)+' <span class="k">on '+esc(G.offworld.on)+' · day '+G.offworld.day+'</span>');
+    if(G.offworld) h+=this.prow('Offworld colony', esc(G.offworld.name)+' <span style="color:var(--dim)">on '+esc(G.offworld.on)+' &middot; day '+G.offworld.day+'</span>');
     if(G.bodies.length){
-      h+='<h3>Charted Sky</h3>';
-      for(const b of G.bodies) h+=this.row(esc(b.name), b.type+' · day '+b.day);
+      h+='<h3 class="sec">Charted Sky</h3>';
+      for(const b of G.bodies) h+=this.prow(esc(b.name), b.type+' &middot; day '+b.day);
     }
     const named=G.species.filter(s=>s.name);
-    h+='<h3>Codex of Life</h3>';
-    if(!named.length) h+='<div class="k">Nothing recorded yet.</div>';
-    for(const s of named) h+=this.row(esc(s.name), s.kind+' · by '+esc(s.namedBy||'?'));
+    h+='<h3 class="sec">Codex of Life</h3>';
+    if(!named.length) h+='<div class="none">Nothing recorded yet.</div>';
+    for(const s of named) h+=this.prow(esc(s.name), s.kind+' &middot; by '+esc(s.namedBy||'?'));
     const left=G.species.length-named.length;
-    if(left>0) h+='<div class="sub" style="color:#777;margin-top:6px">'+left+' species remain undiscovered…</div>';
+    if(left>0) h+='<div style="color:#777;margin-top:6px;font-style:italic">'+left+' species remain undiscovered&hellip;</div>';
     return h;
   },
   goalsHTML(){
     let h='';
     for(const m of MILESTONES){
       const got=G.milestones[m.id];
-      if(got) h+='<div class="row"><span class="c-mile">✓ '+m.name+'</span><span class="k">day '+got+'</span></div>';
-      else h+='<div class="row"><span class="k">◻ '+m.name+'</span></div><div class="sub" style="color:#666;margin:-2px 0 5px">'+m.desc+'</div>';
+      if(got) h+=this.prow('<span class="c-mile">&#10003; '+m.name+'</span>','day '+got);
+      else h+=this.prow('<span style="color:var(--faint)">&#9633; '+m.name+'</span>','<span style="color:#666;font-size:17px">'+m.desc+'</span>');
     }
     return h;
   },
-  chronHTML(){
-    const types=['all','town','decision','faith','war','tech','trade','religion','people','disaster','species','astro','mile'];
-    let h='<div class="filterRow">';
-    for(const ty of types) h+='<button data-act="chronfilter" data-arg="'+ty+'" class="'+(this.chronFilter===ty?'on':'')+'">'+ty+'</button>';
-    h+='</div>';
-    let shown=0;
-    for(let i=G.chron.length-1;i>=0&&shown<260;i--){
-      const c=G.chron[i];
-      if(this.chronFilter!=='all'&&c.t!==this.chronFilter) continue;
-      h+='<div class="chronLine c-'+c.t+'"><span class="d">d'+c.d+'</span>'+esc(c.m)+'</div>';
-      shown++;
-    }
-    if(!shown) h+='<div class="k">Nothing yet.</div>';
-    return h;
-  },
-  menuHTML(){
-    let h='<h3>Map view</h3><div class="filterRow">';
+  settingsHTML(){
+    let h='<h3 class="sec">Map view</h3><div class="filterRow">';
     for(const v of ['terrain','political','fertility'])
       h+='<button data-act="view" data-arg="'+v+'" class="'+(G.viewMode===v?'on':'')+'">'+v+'</button>';
-    h+='</div><h3>Auto-play speed</h3><div class="filterRow">';
+    h+='</div><h3 class="sec">Auto-play speed</h3><div class="filterRow">';
     const speeds=[['slow',1100],['normal',700],['fast',350]];
     for(const sp of speeds)
       h+='<button data-act="speed" data-arg="'+sp[1]+'" class="'+(this.autoSpeed===sp[1]?'on':'')+'">'+sp[0]+'</button>';
-    h+='</div><h3>Saves</h3>';
-    for(let s=1;s<=3;s++){
-      h+='<div class="row"><span class="k">Slot '+s+'</span><span><button class="small" data-act="save" data-arg="'+s+'">Save</button> <button class="small" data-act="load" data-arg="'+s+'">Load</button></span></div>';
-    }
-    h+='<div class="sub" style="color:#777;margin:6px 0">Saves persist where storage is available; otherwise they last this session.</div>';
-    h+='<h3>World</h3>';
-    h+=this.row('Seed', '<span style="user-select:text">'+esc(G.seedStr)+'</span>');
-    h+='<div style="margin-top:8px"><button data-act="newworld">New World</button></div>';
-    h+='<h3>How to play</h3><div class="sub" style="color:#888;line-height:1.7">You are the Voice. Towns live on their own — they farm, learn, trade, and quarrel. Now and then they ask for your counsel. Answer well and their faith grows; leave them waiting and they will decide alone, trusting you a little less each time. If faith reaches zero, the world stops listening. The same seed always grows the same planet. Click any town on the map for details.</div>';
+    h+='</div><h3 class="sec">World</h3>';
+    h+=this.prow('Seed','<span style="user-select:text">'+esc(G.seedStr)+'</span>');
+    h+='<div style="margin-top:10px;display:flex;gap:8px;align-items:center">'
+      +'<input type="text" id="seedField" maxlength="24" placeholder="seed (optional)">'
+      +'<button data-act="newworld">New World</button></div>'
+      +'<div style="color:#777;font-style:italic;margin-top:6px">The same seed always grows the same planet.</div>';
     return h;
   },
+  savesHTML(){
+    let h='';
+    for(let s=1;s<=3;s++){
+      let info='<span class="none">empty</span>';
+      try{ const d=localStorage.getItem('worldseed_slot'+s); if(d){ const o=JSON.parse(d); info='Day '+o.day+' &middot; '+esc(o.planetName); } }catch(e){ if(this.memSaves[s]) info='session save'; }
+      h+='<div class="prow"><span class="k">Slot '+s+' <span style="color:var(--dim);font-size:17px">'+info+'</span></span>'
+        +'<span><button data-act="save" data-arg="'+s+'">Save</button> <button data-act="load" data-arg="'+s+'">Load</button></span></div>';
+    }
+    h+='<div style="color:#777;font-style:italic;margin-top:8px">Saves live in this browser&rsquo;s storage.</div>';
+    return h;
+  },
+  infoHTML(){
+    return '<div style="line-height:1.7;color:#ccc">You are the Voice. Towns live on their own &mdash; they farm, learn, trade, and quarrel. Now and then they ask for your counsel in the Chronicle below; answer well and their faith grows. Leave them waiting and they will decide alone, trusting you a little less each time. If faith reaches zero, the world stops listening.<br><br>'
+      +'Click any town on the map or in the day column for details. The same seed always grows the same planet.<br><br>'
+      +'<b>Keys:</b> N or Space &mdash; next day &middot; T towns &middot; K knowledge &middot; P people &middot; O planet &middot; G goals &middot; L saves &middot; \\ settings &middot; Esc close</div>';
+  },
+  overHTML(){
+    const o=G.over,s=G.stats;
+    return '<div style="line-height:1.9;color:#ccc;text-align:center;padding:8px 0">'
+      +(o.kind==='forsaken'?'No one on '+esc(G.planetName)+' believes in you anymore.':'Every hearth on '+esc(G.planetName)+' has gone cold.')
+      +'<br><br>You endured <b>'+o.day+' days</b> (Year '+(Math.floor(o.day/YEAR)+1)+').'
+      +'<br>Towns risen '+G.townSeq+' &middot; fallen '+s.townsFallen+' &middot; colonies '+s.colonies
+      +'<br>Wars '+s.wars+' &middot; lost to war '+Math.round(s.warDeaths)
+      +'<br>Famine took '+Math.round(s.famineDeaths)+' &middot; plague took '+Math.round(s.plagueDeaths)
+      +'<br>Revolutions '+s.revolutions+' &middot; peak population '+Math.round(s.peakPop||0)
+      +'<br>Milestones '+Object.keys(G.milestones).length+' of '+MILESTONES.length
+      +(G.offworld?('<br>But '+esc(G.offworld.name)+' endures on '+esc(G.offworld.on)+'.'):'')
+      +'<br><br>Seed: <span style="user-select:text">'+esc(G.seedStr)+'</span>'
+      +'<br><br><button data-act="newworld">New World</button></div>';
+  },
   action(act,arg){
-    if(act==='chronfilter'){ this.chronFilter=arg; this.refreshPanel(); }
-    else if(act==='view'){ G.viewMode=arg; G.terrainDirty=true; render(); this.refreshPanel(); }
+    if(act==='view'){ G.viewMode=arg; G.terrainDirty=true; render(); this.refreshPanel(); this.updateHUD(); }
     else if(act==='speed'){ this.autoSpeed=+arg; if(this.autoTimer){ this.stopAuto(); this.toggleAuto(); } this.refreshPanel(); }
     else if(act==='save'){ this.saveSlot(arg); }
     else if(act==='load'){ this.loadSlot(arg); }
-    else if(act==='newworld'){ this.stopAuto(); this.closePanel(); $('seedInput').value=this.randSeed(); $('titleOverlay').classList.add('open'); }
+    else if(act==='newworld'){ const f=$('seedField'); this.newWorld(f&&f.value.trim()?f.value.trim():this.randSeed()); }
   },
 
   /* ---- saves ---- */
@@ -2405,7 +2447,7 @@ const UI = {
       else if(k==='towns') o.towns=G.towns.map(t=>{
         const c=Object.assign({},t);
         c.terr=null; c.terrDirty=true;
-        c.plague = t.plague ? G.plagues.indexOf(t.plague) : -1;
+        c.plague=t.plague?G.plagues.indexOf(t.plague):-1;
         return c;
       });
       else o[k]=G[k];
@@ -2418,32 +2460,28 @@ const UI = {
     o.fert=Float32Array.from(o.fert);
     o.TO=Int16Array.from(o.TO);
     for(const t of o.towns){
-      t.plague = (typeof t.plague==='number' && t.plague>=0 && o.plagues[t.plague]) ? o.plagues[t.plague] : null;
+      t.plague=(typeof t.plague==='number'&&t.plague>=0&&o.plagues[t.plague])?o.plagues[t.plague]:null;
     }
     G=o; G.terrainDirty=true;
     const h0=xmur3(G.seedStr); SEEDN=h0();
     R=mulberry32(xmur3(G.seedStr+'@'+G.day)());
   },
-  async saveSlot(n){
-    if(!G) return;
+  saveSlot(n){
+    if(!G||G.pendingSettle) return;
     const data=this.snapshot();
-    try{
-      localStorage.setItem('worldseed_slot'+n, data);
-      this.toast('Saved — slot '+n);
-    }catch(e){ this.memSaves[n]=data; this.toast('Saved for this session — slot '+n); }
+    try{ localStorage.setItem('worldseed_slot'+n,data); this.toast('Saved — slot '+n); }
+    catch(e){ this.memSaves[n]=data; this.toast('Saved for this session — slot '+n); }
+    this.refreshPanel();
   },
-  async loadSlot(n){
+  loadSlot(n){
     let data=null;
-    try{ data = localStorage.getItem('worldseed_slot'+n); }catch(e){ data=null; }
+    try{ data=localStorage.getItem('worldseed_slot'+n); }catch(e){ data=null; }
     if(!data) data=this.memSaves[n];
     if(!data){ this.toast('Slot '+n+' is empty'); return; }
     try{
       this.restoreSnap(data);
-      this.stopAuto(); this.current=null;
-      $('shade').classList.remove('open');
-      $('titleOverlay').classList.remove('open');
-      $('overOverlay').classList.remove('open');
-      render(); this.updateHUD(); this.refreshPanel(); this.maybeShowPrompt();
+      this.stopAuto(); this.closePop();
+      render(); this.updateHUD(); this.renderChron();
       this.toast('Loaded — slot '+n);
       if(G.over) this.gameOver();
     }catch(e){ this.toast('That save could not be read'); }
@@ -2452,47 +2490,14 @@ const UI = {
     if(!HAS_DOM) return;
     const d=document.createElement('div'); d.className='toast'; d.textContent=msg;
     $('toasts').appendChild(d);
-    setTimeout(()=>d.remove(), 4200);
+    setTimeout(()=>d.remove(),4200);
   },
   gameOver(){
     this.stopAuto();
-    if(this.current){ this.current=null; }
-    $('shade').classList.remove('open');
     const o=G.over; if(!o) return;
-    $('overTitle').textContent = o.kind==='forsaken' ? 'THE VOICE FADES' : 'A SILENT WORLD';
-    const s=G.stats;
-    const lines=[
-      o.kind==='forsaken' ? 'No one on '+esc(G.planetName)+' believes in you anymore.' : 'Every hearth on '+esc(G.planetName)+' has gone cold.',
-      '',
-      'You endured <b>'+o.day+' days</b> (Year '+(Math.floor(o.day/YEAR)+1)+').',
-      'Towns risen '+G.townSeq+' · fallen '+s.townsFallen+' · colonies '+s.colonies,
-      'Wars '+s.wars+' · lost to war '+Math.round(s.warDeaths),
-      'Famine took '+Math.round(s.famineDeaths)+' · plague took '+Math.round(s.plagueDeaths),
-      'Revolutions '+s.revolutions+' · peak population '+Math.round(s.peakPop||0),
-      'Milestones '+Object.keys(G.milestones).length+' of '+MILESTONES.length,
-      G.offworld ? ('But '+esc(G.offworld.name)+' endures on '+esc(G.offworld.on)+'.') : '',
-      '',
-      'Seed: <span style="user-select:text">'+esc(G.seedStr)+'</span>',
-    ];
-    $('overStats').innerHTML = lines.join('<br>');
-    $('overOverlay').classList.add('open');
-  },
-  pickTown(e){
-    if(!G) return;
-    const r=cv.getBoundingClientRect();
-    const tx=Math.floor((e.clientX-r.left)/r.width*W);
-    const ty=Math.floor((e.clientY-r.top)/r.height*H);
-    if(tx<0||ty<0||tx>=W||ty>=H) return;
-    let id=G.TO[ty*W+tx];
-    if(id!==-1){ const t=townById(id); if(!t||t.dead) id=-1; }
-    if(id===-1){
-      let bd=6;
-      for(const t of aliveTowns()){
-        const d=Math.hypot(t.cap[0]-tx, t.cap[1]-ty);
-        if(d<bd){ bd=d; id=t.id; }
-      }
-    }
-    if(id!==-1){ this.selectedTown=id; this.openPanel('town'); render(); }
+    $('popTitle').dataset.overTitle = o.kind==='forsaken'?'THE VOICE FADES':'A SILENT WORLD';
+    this.openPop('over');
+    this.updateHUD();
   },
 };
 
@@ -2500,23 +2505,25 @@ const UI = {
 if(HAS_DOM){
   initCanvas();
   UI.init();
+  newGame(UI.randSeed());
+  UI.renderChron(); UI.updateHUD(); render();
 } else {
   // headless smoke test (node)
   const seeds=['alpha','omega','gamma'];
-  const horizon = {alpha:420, omega:420, gamma:2200};
+  const horizon={alpha:420,omega:420,gamma:2200};
   for(const s of seeds){
     try{
       newGame(s);
       while(G.day<horizon[s] && !G.over){
         nextDay(1);
         while(G.prompts.length){
-          const p = G.prompts.shift();
-          resolvePrompt(p, p.options ? Math.floor(Math.random()*p.options.length) : 0, null);
+          const p=G.prompts.shift();
+          resolvePrompt(p, p.options?Math.floor(Math.random()*p.options.length):0, null);
         }
       }
       const ts=aliveTowns();
-      const era = ts.length ? Math.max.apply(null, ts.map(t=>t.era)) : 0;
-      const bad = Number.isNaN(G.faith) || ts.some(t=>Number.isNaN(popOf(t)));
+      const era=ts.length?Math.max.apply(null,ts.map(t=>t.era)):0;
+      const bad=Number.isNaN(G.faith)||ts.some(t=>Number.isNaN(popOf(t)));
       console.log('[test] seed='+s+' day='+G.day+' towns='+ts.length+' pop='+Math.round(worldPop())
         +' era='+era+' faith='+G.faith.toFixed(1)+' chron='+G.chron.length
         +' wars='+G.stats.wars+' relig='+G.religions.length
