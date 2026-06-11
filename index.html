@@ -95,6 +95,7 @@ input[type=text]:focus{outline:none;border-color:var(--gold)}
 .c-war{color:#ff8a8a}.c-tech{color:#8ad1ff}.c-faith{color:var(--gold)}.c-disaster{color:#ffb46e}
 .c-people{color:#d3a6ff}.c-religion{color:#ffe9a6}.c-town{color:#9fff9f}.c-trade{color:#9fd8c8}
 .c-species{color:#b6ff7d}.c-astro{color:#c8c8ff}.c-mile{color:#fff;font-weight:bold}.c-decision{color:var(--gold)}
+.c-day{color:#7a7a7a}.c-day .d{color:#8a7a3a}
 .ask{color:#fff}
 .hint{color:#7dff8a}
 
@@ -650,6 +651,76 @@ const PROMPT_DEFS = [
         body:'Word reaches '+t.name+': the people of '+o.name+' are starving. '+t.name+' has grain to spare — barely. Send aid?',
         options:['Send grain','Guard our own']};
     }},
+  /* ---- everyday asks: keep counsel flowing from day one ---- */
+  {kind:'name_landmark', w:7,
+    ok:(t)=>!t.flags.landmarksNamed || t.flags.landmarksNamed < 3,
+    build:(t)=>{
+      const c = terrOf(t);
+      const feats = [];
+      if(c.seaAdj>0||c.coast>1) feats.push('bay','shore');
+      if(c.forest>1) feats.push('wood','grove');
+      if(c.hills+c.mount>1) feats.push('peak','ridge');
+      if(c.grass>2) feats.push('river','meadow');
+      if(!feats.length) feats.push('plain');
+      const f = pick(feats);
+      return {title:'A place without a name', townId:t.id, input:true, suggest:NG.word(2,3), args:{feat:f},
+        body:'Children of '+t.name+' keep asking what the '+f+' beside their home is called. No one knows. The Voice may decide.',
+        options:['Name it']};
+    }},
+  {kind:'omen', w:6,
+    ok:(t)=>true,
+    build:(t)=>{
+      const o = pick(['a two-headed calf is born','a ring circles the moon','birds fly north in the wrong season','a well runs red with clay','lightning strikes the same tree twice']);
+      return {title:'An omen', townId:t.id, args:{omen:o},
+        body:'In '+t.name+', '+o+'. The people murmur and look upward. Is it a blessing, or a warning?',
+        options:['A blessing','A warning']};
+    }},
+  {kind:'stranger', w:6,
+    ok:(t)=>popOf(t)>=6,
+    build:(t)=>({title:'A stranger at dusk', townId:t.id,
+      body:'A lone wanderer reaches '+t.name+' at nightfall, asking for a roof and a place at the fire. Take them in?',
+      options:['Take them in','Send them on']}),
+  },
+  {kind:'hunt_or_fish', w:6,
+    ok:(t)=>{ const c=terrOf(t); return t.techs.hunting && c.forest>0 && (c.seaAdj>0||c.coast>0); },
+    build:(t)=>({title:'Where to send the hunters', townId:t.id,
+      body:'The hunters of '+t.name+' can work the deep woods or the gray shallows this season, not both. Which?',
+      options:['The woods','The water']}),
+  },
+  {kind:'quarrel', w:6,
+    ok:(t)=>popOf(t)>=10,
+    build:(t)=>{
+      const a=NG.person(), b=NG.person();
+      return {title:'A quarrel over a fence', townId:t.id,
+        body:'In '+t.name+', old '+a+' and young '+b+' both claim the same strip of field, and the whole town has picked sides. Whose claim stands?',
+        options:['The elder’s','The young one’s']};
+    }},
+  {kind:'wolves', w:5,
+    ok:(t)=>{ const c=terrOf(t); return t.techs.husbandry && c.forest>0; },
+    build:(t)=>({title:'Wolves in the dark', townId:t.id,
+      body:'Something has been taking livestock from '+t.name+' by night. The herders ask: send hunters after the pack, or spend timber on taller fences?',
+      options:['Hunt the pack','Build fences']}),
+  },
+  {kind:'child_question', w:5,
+    ok:(t)=>popOf(t)>=4,
+    build:(t)=>({title:'A child’s question', townId:t.id,
+      body:'A child of '+t.name+' stares at the night sky and asks the Voice directly: are the stars watching us back?',
+      options:['They watch over you','They are only lights']}),
+  },
+  {kind:'work_rest', w:5,
+    ok:(t)=>t.happiness<60 && popOf(t)>=8,
+    build:(t)=>({title:'Tired hands', townId:t.id,
+      body:'The workers of '+t.name+' are weary and the elders argue: declare a day of rest, or push on while the weather holds?',
+      options:['A day of rest','Push on']}),
+  },
+  {kind:'motion_color', w:4,
+    ok:(t)=>popOf(t)>=15 && (t.flags.colorAsked||0) < G.day-80,
+    build:(t)=>{
+      t.flags.colorAsked = G.day;
+      return {title:'A motion in '+t.name, townId:t.id,
+        body:'A motion rises in '+t.name+' to fly a new color over the town. The council is split and turns to the Voice.',
+        options:['Yes','No']};
+    }},
 ];
 function lowestRel(t){
   let m = 0;
@@ -784,6 +855,14 @@ function evaluateDecisions(){
         if(d.choice===0) judge(t, t.happiness>=d.base.hap-5, 'the two faiths learned to share the square', 'the mingled faiths brawl in the streets', 4);
         else judge(t, true, 'the old ways stand unchallenged', '', 2);
         break;
+      case 'omen':
+        if(d.choice===1) judge(t, t.starvingDays>0||t.plague||warOf(t), 'the warning you read in the omen came true', 'the dreaded omen came to nothing', 3);
+        else judge(t, t.starvingDays===0 && !t.plague, 'the blessing held — good days followed', 'you called it a blessing; hardship followed', 3);
+        break;
+      case 'work_rest':
+        if(d.choice===0) judge(t, t.happiness>d.base.hap, 'the rested town works with new heart', 'the lost day was never made up', 3);
+        else judge(t, t.starvingDays===0, 'the extra labor filled the stores', 'they worked to the bone for nothing', 3);
+        break;
     }
   }
 }
@@ -792,7 +871,7 @@ function evaluateDecisions(){
 function resolvePrompt(p, choiceIdx, inputValue){
   const t = p.townId!==undefined ? townById(p.townId) : null;
   const o = p.args && p.args.other!==undefined ? townById(p.args.other) : null;
-  const worldKind = (p.kind==='name_planet'||p.kind==='name_star'||p.kind==='name_body'||p.kind==='name_craft'||p.kind==='name_offworld'||p.kind==='milestone_cheer');
+  const worldKind = (p.kind==='name_planet'||p.kind==='name_star'||p.kind==='name_body'||p.kind==='name_craft'||p.kind==='name_offworld'||p.kind==='milestone_cheer'||p.kind==='name_continent');
   if(!worldKind && (!t || t.dead)) return;
   switch(p.kind){
     /* ---- naming prompts ---- */
@@ -934,6 +1013,55 @@ function resolvePrompt(p, choiceIdx, inputValue){
     case 'milestone_cheer':
       allFaith(1);
       break;
+    case 'name_continent': {
+      const nm = (inputValue||'').trim().slice(0,18) || NG.planet();
+      G.landmassNames[p.args.lb] = nm;
+      chron('The great land is named: '+nm+'.', 'astro', p.townId);
+      allFaith(1);
+      break; }
+    case 'motion_color':
+      if(choiceIdx===0 && t){ t.hue = ri(0,359); G.terrainDirty=true; chron(t.name+' flies a new color from every rooftop.', 'town', t.id); t.hapBuf+=3; }
+      else if(t) chron('The motion fails; '+t.name+' keeps its old banner.', 'town', t.id);
+      break;
+    /* ---- everyday asks ---- */
+    case 'name_landmark': {
+      const nm = (inputValue||'').trim().slice(0,18) || NG.word(2,3);
+      t.flags.landmarksNamed = (t.flags.landmarksNamed||0)+1;
+      t.hapBuf += 3; t.faith = clamp(t.faith+1.5,0,100);
+      chron('The '+(p.args.feat||'place')+' by '+t.name+' is named: '+nm+'.', 'town', t.id);
+      break; }
+    case 'omen':
+      if(choiceIdx===0){ t.hapBuf+=5; t.morale=clamp(t.morale+4,0,100); chron(t.name+' takes heart — the omen was a blessing, the Voice has said so.', 'faith', t.id); }
+      else { t.culture.spi=clamp(t.culture.spi+.04,-1,1); t.hapBuf-=2; t.flags.warned=G.day+20; chron(t.name+' double-checks its stores and watches the horizon.', 'faith', t.id); }
+      recordDecision('omen', t.id, choiceIdx, {}, 20);
+      break;
+    case 'stranger':
+      if(choiceIdx===0){ t.pop.w+=1; t.culture.ope=clamp(t.culture.ope+.03,-1,1); if(chance(.12)){ t.res.know+=ri(3,8); chron('The stranger taken in by '+t.name+' turns out to know rare and useful things.', 'town', t.id); } else chron('A wanderer finds a home in '+t.name+'.', 'town', t.id); }
+      else { t.culture.ope=clamp(t.culture.ope-.03,-1,1); chron('The gates of '+t.name+' stay shut; the wanderer walks on into the dark.', 'town', t.id); }
+      break;
+    case 'hunt_or_fish':
+      if(choiceIdx===0){ t.res.food += popOf(t)*rf(.25,.6); chron('The hunt out of '+t.name+' comes back heavy with game.', 'town', t.id); }
+      else { t.res.food += popOf(t)*rf(.2,.5); t.flags.fishBonus=(t.flags.fishBonus||0)+0.01; chron('Nets out of '+t.name+' come up silver and full.', 'town', t.id); }
+      break;
+    case 'quarrel':
+      if(choiceIdx===0){ t.culture.tra=clamp(t.culture.tra+.05,-1,1); t.hapBuf+=1; chron('The elders of '+t.name+' nod; the old claim stands.', 'town', t.id); }
+      else { t.culture.tra=clamp(t.culture.tra-.05,-1,1); t.hapBuf+=1; chron('The young claim wins the field in '+t.name+'; the old guard grumbles.', 'town', t.id); }
+      break;
+    case 'wolves':
+      if(choiceIdx===0){
+        if(chance(.7)){ t.morale=clamp(t.morale+5,0,100); t.flags.herdBonus=(t.flags.herdBonus||0)+0.01; chron('Hunters of '+t.name+' return with gray pelts. The pens are quiet again.', 'town', t.id); }
+        else { t.pop.w=Math.max(0,t.pop.w-1); t.hapBuf-=3; chron('The pack was waiting. A hunter of '+t.name+' does not come home.', 'disaster', t.id); }
+      } else { t.res.wood=Math.max(0,t.res.wood-12); t.flags.herdBonus=(t.flags.herdBonus||0)+0.015; chron(t.name+' rings its pens with sharpened stakes.', 'town', t.id); }
+      break;
+    case 'child_question':
+      if(choiceIdx===0){ t.culture.spi=clamp(t.culture.spi+.05,-1,1); t.faith=clamp(t.faith+2,0,100); chron('In '+t.name+' the children sleep easier, watched over.', 'faith', t.id); }
+      else { t.culture.spi=clamp(t.culture.spi-.05,-1,1); t.res.know+=2; chron('In '+t.name+', a child decides to count the lights instead. So it begins.', 'tech', t.id); }
+      break;
+    case 'work_rest':
+      if(choiceIdx===0){ t.hapBuf+=9; t.flags.restDay=G.day; chron('Tools are set down in '+t.name+'. For one day, only songs.', 'town', t.id); }
+      else { t.res.food+=popOf(t)*.2; t.res.wood+=4; t.hapBuf-=3; chron(t.name+' works through its weariness while the sky holds.', 'town', t.id); }
+      recordDecision('work_rest', t.id, choiceIdx, {}, 18);
+      break;
   }
   // answering at all is itself a small act of presence
   if(t && !t.dead) t.faith = clamp(t.faith + 0.4, 0, 100);
@@ -955,6 +1083,70 @@ function autoDecideStale(){
   }
 }
 function allFaith(d){ for(const t of aliveTowns()) t.faith = clamp(t.faith+d, 0, 100); }
+
+/* ---- the day's ledger, town by town ---- */
+function dailyRecap(){
+  const ts = aliveTowns();
+  if(!ts.length) return;
+  const fmt=(d,icon)=>{ const r=Math.round(d); return r===0?'':((r>0?'+':'')+r+icon); };
+  if(ts.length<=5){
+    for(const t of ts){
+      const dPop = popOf(t) - (t._lastPop!==undefined?t._lastPop:popOf(t));
+      const dFood = t.res.food - (t._lastFood!==undefined?t._lastFood:t.res.food);
+      const bits = [fmt(dPop,'\u{1F642}'), fmt(dFood,'\u{1F331}')].filter(Boolean);
+      chron('Dusk settles on '+t.name+(bits.length?' ('+bits.join(' ')+')':''), 'day', t.id);
+      t._lastPop = popOf(t); t._lastFood = t.res.food;
+    }
+  } else {
+    let dPop=0, dFood=0;
+    for(const t of ts){
+      dPop += popOf(t) - (t._lastPop!==undefined?t._lastPop:popOf(t));
+      dFood += t.res.food - (t._lastFood!==undefined?t._lastFood:t.res.food);
+      t._lastPop = popOf(t); t._lastFood = t.res.food;
+    }
+    const bits=[fmt(dPop,'\u{1F642}'), fmt(dFood,'\u{1F331}')].filter(Boolean);
+    chron('Dusk settles over '+G.planetName+(bits.length?' ('+bits.join(' ')+')':''), 'day');
+  }
+}
+
+/* ---- landmasses: label the continents, ask their names ---- */
+function labelLandmasses(){
+  const lm = new Int16Array(W*H).fill(-1);
+  const sizes = {};
+  let next = 0;
+  const qx = new Int32Array(W*H);
+  for(let s=0;s<W*H;s++){
+    if(lm[s]!==-1 || !TINFO[G.tiles[s]].land) continue;
+    let head=0, tail=0; qx[tail++]=s; lm[s]=next; let n=0;
+    while(head<tail){
+      const i=qx[head++]; n++;
+      const x=i%W, y=(i/W)|0;
+      if(x>0 && lm[i-1]===-1 && TINFO[G.tiles[i-1]].land){ lm[i-1]=next; qx[tail++]=i-1; }
+      if(x<W-1 && lm[i+1]===-1 && TINFO[G.tiles[i+1]].land){ lm[i+1]=next; qx[tail++]=i+1; }
+      if(y>0 && lm[i-W]===-1 && TINFO[G.tiles[i-W]].land){ lm[i-W]=next; qx[tail++]=i-W; }
+      if(y<H-1 && lm[i+W]===-1 && TINFO[G.tiles[i+W]].land){ lm[i+W]=next; qx[tail++]=i+W; }
+    }
+    sizes[next]=n; next++;
+  }
+  G.landmass = lm; G.landmassSizes = sizes;
+  G.landmassNames = {}; G.lmAsked = {};
+}
+function landmassOf(t){ return G.landmass ? G.landmass[t.cap[1]*W+t.cap[0]] : -1; }
+function landmassAskTick(){
+  if(!G.landmass) return;
+  for(const t of aliveTowns()){
+    const lb = landmassOf(t);
+    if(lb<0 || G.landmassNames[lb] || G.lmAsked[lb]) continue;
+    if((G.landmassSizes[lb]||0) < 25) continue; // islets stay nameless
+    if(G.prompts.some(p=>p.kind==='name_continent')) return;
+    G.lmAsked[lb] = true;
+    queuePrompt({kind:'name_continent', townId:t.id, args:{lb}, input:true, suggest:NG.planet(),
+      title:'The land beneath their feet',
+      body:'The people of '+t.name+' speak of the great landmass they live upon, but it has no name to put in their stories. The Voice may give it one.',
+      options:['Name it']});
+    return;
+  }
+}
 
 /* ============================================================
    DAILY SIMULATION SYSTEMS
@@ -1016,6 +1208,7 @@ function productionTick(t){
   }
 
   const others = Math.max(0, w - farmers);
+  t.jobs = {farmers: Math.round(farmers), laborers: Math.round(others*0.6), scholars: Math.round(others*0.4)};
   // wood / stone / metal / knowledge
   if(c.forest>0) t.res.wood += others*0.16*Math.min(1, c.forest/14);
   if(t.techs.masonry && (c.hills+c.mount)>0) t.res.stone += others*0.10*Math.min(1,(c.hills+c.mount)/10);
@@ -1566,6 +1759,29 @@ function disastersTick(){
       } else chron('Far from any hearth, a mountain burns. Ash drifts over '+G.planetName+'.', 'disaster');
     }
   }
+  // earthquake — sudden, loud, usually harmless
+  if(chance(0.006)){
+    const mag = rf(4.0,8.2);
+    const ei = ri(0,W*H-1);
+    const ex=ei%W, ey=(ei/W)|0;
+    let hit=null;
+    for(const t of towns){
+      if(Math.hypot(t.cap[0]-ex, t.cap[1]-ey) < (mag-3)*2.2){ hit=t; break; }
+    }
+    const sea = !TINFO[G.tiles[ei]].land;
+    if(hit && mag>5.5){
+      const guard = hit.techs.engineering?0.35:(hit.techs.masonry?0.7:1);
+      const deaths = popOf(hit)*rf(0.002,0.012)*guard*(mag-5);
+      hit.pop.w-=deaths*.5; hit.pop.c-=deaths*.3; hit.pop.e-=deaths*.2;
+      hit.res.stone = Math.max(0, hit.res.stone - ri(4,14));
+      hit.hapBuf -= 4;
+      chron('A magnitude '+mag.toFixed(1)+' earthquake rattles '+hit.name+'. Walls crack; dust hangs in the lanes.', 'disaster', hit.id);
+    } else if(sea){
+      chron('A magnitude '+mag.toFixed(1)+' earthquake rumbles beneath the sea. No town feels more than a shiver.', 'disaster');
+    } else {
+      chron('Far from any hearth, a magnitude '+mag.toFixed(1)+' earthquake shakes the empty land.', 'disaster');
+    }
+  }
   // drought countdown + desertification
   for(const t of towns){
     if(t.droughtDays>0){
@@ -1875,6 +2091,8 @@ function newGame(seedStr){
     viewMode:'terrain',
   };
   G.species = genSpeciesPool();
+  labelLandmasses();
+  G.landmassNames = {}; G.lmAsked = {};
   if(HAS_DOM){
     G.pendingSettle = true;
   } else {
@@ -1924,15 +2142,33 @@ function nextDay(n){
     evaluateDecisions();
     // prune prompts aimed at fallen towns (world-level asks survive)
     G.prompts = G.prompts.filter(p=>{
-      if(p.kind==='name_planet'||p.kind==='name_star'||p.kind==='name_body'||p.kind==='name_craft'||p.kind==='name_offworld') return true;
+      if(p.kind==='name_planet'||p.kind==='name_star'||p.kind==='name_body'||p.kind==='name_craft'||p.kind==='name_offworld'||p.kind==='name_continent') return true;
       const t = p.townId!==undefined ? townById(p.townId) : null;
       return t && !t.dead;
     });
     if(G.day >= G.nextPromptDay){
       generatePolicyPrompt();
-      G.nextPromptDay = G.day + Math.max(2, ri(3,7) - Math.floor(aliveTowns().length/5));
+      G.nextPromptDay = G.day + ri(1,2);
     }
+    // early folk-naming of the sky, long before astronomy
+    if(G.day===4 && !G.starName && !G.prompts.some(p=>p.kind==='name_star')){
+      const t0 = aliveTowns()[0];
+      if(t0) queuePrompt({kind:'name_star', townId:t0.id, input:true, suggest:NG.star(),
+        title:'The bright ball above',
+        body:'The people of '+t0.name+' point at the burning circle that crosses the sky each day and ask the Voice what it is called.',
+        options:['So be it']});
+    }
+    if(G.day===9 && !G.bodies.length && !G.prompts.some(p=>p.kind==='name_body')){
+      const t0 = aliveTowns()[0];
+      if(t0) queuePrompt({kind:'name_body', townId:t0.id, args:{type:'moon'}, input:true, suggest:NG.planet(),
+        title:'The pale wanderer',
+        body:'A pale disc hangs over '+t0.name+' at night, changing shape as the days pass. The children want a name for it.',
+        options:['Name it']});
+    }
+    // unnamed landmasses get asked about once a town stands on them
+    landmassAskTick();
     autoDecideStale();
+    dailyRecap();
     milestonesTick();
     faithTick();
     checkEnd();
@@ -1974,7 +2210,7 @@ function buildTerrain(){
   tctx.putImageData(img,0,0);
   terrMode = mode;
 }
-function hueOf(t){ return (t.id*47+13)%360; }
+function hueOf(t){ return t.hue!==undefined ? t.hue : (t.id*47+13)%360; }
 function render(){
   if(!HAS_DOM || !G || !ctx) return;
   if(G.terrainDirty || terrMode!==G.viewMode){ buildTerrain(); G.terrainDirty=false; }
@@ -2269,6 +2505,9 @@ const UI = {
     h+=this.prow('Faith in you', this.bar(t.faith,'#ffd75e'));
     h+=this.prow('Morale', this.bar(t.morale));
     h+=this.prow('Influences', this.cultureTags(t));
+    h+=this.prow('Jobs', t.jobs ? (t.jobs.farmers+' farmers / '+t.jobs.laborers+' laborers / '+t.jobs.scholars+' scholars') : '<span class="none">None yet..</span>');
+    const lb=landmassOf(t);
+    h+=this.prow('Landmass', (lb>=0&&G.landmassNames[lb])?'<span style="color:#7fe8e8">'+esc(G.landmassNames[lb])+'</span>':'<span class="none">unnamed</span>');
     h+=this.prow('Religion', t.religion!==null?esc(religionById(t.religion).name):'<span class="none">None yet..</span>');
     h+=this.prow('Trade routes', routeCount(t)||'<span class="none">None yet..</span>');
     const w=warOf(t);
@@ -2444,6 +2683,7 @@ const UI = {
       if(k==='tiles') o.tiles=Array.from(G.tiles);
       else if(k==='fert') o.fert=Array.from(G.fert).map(v=>Math.round(v*1000)/1000);
       else if(k==='TO') o.TO=Array.from(G.TO);
+      else if(k==='landmass') continue;
       else if(k==='towns') o.towns=G.towns.map(t=>{
         const c=Object.assign({},t);
         c.terr=null; c.terrDirty=true;
@@ -2465,6 +2705,9 @@ const UI = {
     G=o; G.terrainDirty=true;
     const h0=xmur3(G.seedStr); SEEDN=h0();
     R=mulberry32(xmur3(G.seedStr+'@'+G.day)());
+    const names=G.landmassNames||{}, asked=G.lmAsked||{};
+    labelLandmasses();
+    G.landmassNames=names; G.lmAsked=asked;
   },
   saveSlot(n){
     if(!G||G.pendingSettle) return;
