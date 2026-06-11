@@ -1,3 +1,5 @@
 .netlify/
 node_modules/
 *.log
+.gitnexus
+CLAUDE.md
