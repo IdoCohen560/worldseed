@@ -10,7 +10,7 @@
 <style>
 :root{
   --bg:#000;--fg:#fff;--dim:#9a9a9a;--faint:#555;--gold:#ffd75e;--bad:#ff5e5e;--good:#7dff8a;
-  --cell:#1d1d1d;--line:#3a3a3a;
+  --cell:#1d1d1d;--line:#6e6e6e;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
@@ -63,7 +63,7 @@ input[type=text]:focus{outline:none;border-color:var(--gold)}
 /* ---- middle ---- */
 #midPane{grid-area:mid;display:flex;flex-direction:column;align-items:center;padding:10px 12px;border-right:2px solid var(--line);border-bottom:2px solid var(--line);overflow:hidden}
 #dayHead{color:var(--gold);text-decoration:underline;font-size:26px}
-#townsOf{color:var(--dim);margin:2px 0 8px}#townsOf b{color:#9fd8c8;font-weight:normal}
+#townsOf{color:var(--dim);margin:2px 0 8px}#townsOf b{color:#9fd8c8;font-weight:normal;text-decoration:underline;cursor:pointer}
 #townRows{width:100%;overflow-y:auto;max-height:38%}
 .trow{display:flex;justify-content:space-between;gap:8px;background:var(--cell);padding:2px 12px;margin-bottom:3px;cursor:pointer}
 .trow:hover{outline:1px solid #666}
@@ -142,7 +142,7 @@ h3.sec{color:var(--gold);text-decoration:underline;font-weight:normal;font-size:
     <div class="totRow" id="totRow"></div>
     <div id="faithRow">FAITH <span class="bar"><i id="faithFill" style="width:72%"></i></span> <span id="faithNum">72</span></div>
     <div id="midSpacer"></div>
-    <button id="nextBtn" class="glow">Next Day &#9654;</button>
+    <button id="nextBtn" class="glow">Next Day &#9655;&#9873;</button>
     <div id="speedRow">
       <button id="ffBtn">&#9193; &times;10</button>
       <button id="autoBtn">&#9654; Auto</button>
@@ -2606,6 +2606,7 @@ const UI = {
     $('popClose').addEventListener('click', ()=>this.closePop());
     $('shade').addEventListener('click', e=>{ if(e.target===$('shade')) this.closePop(); });
     $('viewTag').addEventListener('click', ()=>this.cycleView());
+    $('townsOf').addEventListener('click', ()=>this.togglePop('planet'));
     $('map').addEventListener('click', e=>this.mapClick(e));
     document.querySelectorAll('.mitem').forEach(el=>
       el.addEventListener('click', ()=>this.togglePop(el.dataset.pop)));
